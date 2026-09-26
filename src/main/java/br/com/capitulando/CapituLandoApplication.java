@@ -4,10 +4,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class CapitulandoApplication {
+public class CapituLandoApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(CapitulandoApplication.class, args);
+		SpringApplication.run(CapituLandoApplication.class, args);
 	}
 
 }
