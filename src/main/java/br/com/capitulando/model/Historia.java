@@ -1,3 +1,4 @@
+package br.com.capitulando.model;
 
 public class Historia {
     private long id;
