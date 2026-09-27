@@ -1,46 +1,59 @@
-package com.seunome.projeto.controllers;
+package br.com.capitulando.controller;
 
+import br.com.capitulando.model.Creature;
+import br.com.capitulando.service.CreatureService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
+import java.util.UUID;
 
 @RestController
-@RequestMapping("/characters")
-public class CharacterController {
+@RequestMapping("/creatures")
+public class CreatureController {
 
-    // 1. CRIAR: Recebe um JSON no corpo da requisição e cria um personagem
+    private final CreatureService creatureService;
+
+    public CreatureController(CreatureService creatureService) {
+        this.creatureService = creatureService;
+    }
+
+    // 1. CRIAR UMA CRIATURA (POST)
     @PostMapping
-    public CharacterEntity create(@RequestBody CharacterEntity character) {
-        // Ação: Mandar o Service salvar no banco
-        return character; 
+    public ResponseEntity<Creature> create(@RequestBody Creature creature) {
+        Creature savedCreature = creatureService.save(creature);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedCreature);
     }
 
-    // 2. BUSCAR TODOS: Retorna uma lista com todos os personagens
+    // 2. LISTAR TODAS AS CRIATURAS (GET)
     @GetMapping
-    public List<CharacterEntity> listAll() {
-        // Ação: Mandar o Service buscar tudo no banco
-        return null; 
+    public ResponseEntity<List<Creature>> listAll() {
+        List<Creature> creatures = creatureService.findAll();
+        return ResponseEntity.ok(creatures);
     }
 
-    // 3. BUSCAR POR ID: O {id} na URL é capturado pelo @PathVariable
-    // Exemplo de chamada: GET localhost:8080/characters/1
+    // 3. BUSCAR UMA CRIATURA POR ID (GET)
     @GetMapping("/{id}")
-    public CharacterEntity findById(@PathVariable Long id) {
-        // Ação: Mandar o Service buscar o personagem número 'id'
-        return null;
+    public ResponseEntity<Creature> findById(@PathVariable UUID id) {
+        Creature creature = creatureService.findById(id);
+        return ResponseEntity.ok(creature);
     }
 
-    // 4. ATUALIZAR: Precisa do ID na URL para saber quem atualizar, e do JSON no corpo com os novos dados
-    // Exemplo de chamada: PUT localhost:8080/characters/1
+    // 4. ATUALIZAR UMA CRIATURA (PUT)
     @PutMapping("/{id}")
-    public CharacterEntity update(@PathVariable Long id, @RequestBody CharacterEntity updatedCharacter) {
-        // Ação: Mandar o Service atualizar
-        return updatedCharacter;
+    public ResponseEntity<Creature> update(
+            @PathVariable UUID id,
+            @RequestBody Creature creature
+    ) {
+        Creature updatedCreature = creatureService.update(id, creature);
+        return ResponseEntity.ok(updatedCreature);
     }
 
-    // 5. DELETAR: Precisa apenas do ID na URL
-    // Exemplo de chamada: DELETE localhost:8080/characters/1
+    // 5. DELETAR UMA CRIATURA (DELETE)
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable Long id) {
-        // Ação: Mandar o Service deletar do banco
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        creatureService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }

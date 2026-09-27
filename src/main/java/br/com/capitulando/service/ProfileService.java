@@ -19,13 +19,19 @@ public class ProfileService {
 
     // SALVAR
     public Profile save(Profile profile) {
-        // Como o seu modelo não tem @GeneratedValue no ID, garantimos que ele seja gerado aqui se vier nulo
         if (profile.getId() == null) {
-            profile.setId(UUID.randomUUID());
+            throw new IllegalArgumentException(
+                    "O ID do perfil deve corresponder ao ID do usuário autenticado.");
         }
-        
-        profile.setCreatedAt(Instant.now());
-        profile.setUpdatedAt(Instant.now());
+
+        Instant now = Instant.now();
+
+        if (profile.getCreatedAt() == null) {
+            profile.setCreatedAt(now);
+        }
+
+        profile.setUpdatedAt(now);
+
         return repository.save(profile);
     }
 
@@ -54,7 +60,7 @@ public class ProfileService {
         existingProfile.setDisplayName(profileDetails.getDisplayName());
         existingProfile.setBio(profileDetails.getBio());
         existingProfile.setAvatarImage(profileDetails.getAvatarImage());
-        
+
         // Atualiza a data de modificação
         existingProfile.setUpdatedAt(Instant.now());
 

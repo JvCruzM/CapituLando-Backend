@@ -1,5 +1,3 @@
-
-
 package br.com.capitulando.repository;
 
 import br.com.capitulando.model.Profile;
