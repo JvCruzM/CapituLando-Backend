@@ -8,6 +8,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+/**
+ * Controladora para gerenciamento de autenticação e rotas de login/registro.
+ */
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
