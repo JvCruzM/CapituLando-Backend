@@ -26,7 +26,9 @@ public class AuthController {
     public record RegisterRequest(String username, String password, String displayName, String bio, String avatarImage) {}
     public record AuthResponse(UUID id, String username, String displayName, String token) {}
 
-    // 1. LOGIN DE EXEMPLO (POST /auth/login)
+    /**
+     * Endpoint para autenticação de usuário (Login).
+     */
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
         try {
@@ -43,7 +45,9 @@ public class AuthController {
         }
     }
 
-    // 2. CADASTRO DE EXEMPLO (POST /auth/register)
+    /**
+     * Endpoint para registro de novo usuário.
+     */
     @PostMapping("/register")
     public ResponseEntity<Profile> register(@RequestBody RegisterRequest request) {
         Profile newProfile = new Profile();
