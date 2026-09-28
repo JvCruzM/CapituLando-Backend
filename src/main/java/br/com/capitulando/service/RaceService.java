@@ -39,6 +39,10 @@ public class RaceService {
                         new RuntimeException("Raça não encontrada para o ID: " + id));
     }
 
+    public List<Race> findByStoryId(UUID storyId) {
+        return repository.findByStoryId(storyId);
+    }
+
     public Race update(UUID id, Race raceDetails) {
         Race existingRace = findById(id);
 

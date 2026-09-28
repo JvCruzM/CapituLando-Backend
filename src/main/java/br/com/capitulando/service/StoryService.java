@@ -36,6 +36,11 @@ public class StoryService {
                 .orElseThrow(() -> new RuntimeException("História não encontrada para o ID: " + id));
     }
 
+    // BUSCAR POR AUTOR (PROFILE ID)
+    public List<Story> findByProfileId(UUID profileId) {
+        return repository.findByProfileId(profileId);
+    }
+
     // ATUALIZAR
     public Story update(UUID id, Story storyDetails) {
         Story existingStory = findById(id);
