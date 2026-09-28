@@ -35,6 +35,11 @@ public class ItemService {
                 .orElseThrow(() -> new RuntimeException("Item não encontrado para o ID: " + id));
     }
 
+    // BUSCAR POR ID DA HISTÓRIA
+    public List<Item> findByStoryId(UUID storyId) {
+        return repository.findByStoryId(storyId);
+    }
+
     // ATUALIZAR
     public Item update(UUID id, Item itemDetails) {
         Item existingItem = findById(id);

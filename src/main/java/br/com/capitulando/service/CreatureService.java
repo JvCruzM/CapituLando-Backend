@@ -38,6 +38,11 @@ public class CreatureService {
                 .orElseThrow(() -> new RuntimeException("Criatura não encontrada para o ID: " + id));
     }
 
+    // BUSCAR POR ID DA HISTÓRIA
+    public List<Creature> findByStoryId(UUID storyId) {
+        return repository.findByStoryId(storyId);
+    }
+
     // ATUALIZAR
     public Creature update(UUID id, Creature creatureDetails) {
         // 1. Busca a criatura existente no banco (ou lança erro se não achar)
