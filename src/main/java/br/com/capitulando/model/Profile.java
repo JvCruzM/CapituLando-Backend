@@ -24,7 +24,7 @@ public class Profile {
     @Column(columnDefinition = "TEXT")
     private String bio;
 
-    @Column(name = "avatar_image")
+    @Column(name = "avatar_image", columnDefinition = "TEXT")
     private String avatarImage;
 
     @Column(name = "created_at", nullable = false)

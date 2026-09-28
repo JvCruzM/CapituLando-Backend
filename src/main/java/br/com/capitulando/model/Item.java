@@ -40,7 +40,7 @@ public class Item {
     @Column(columnDefinition = "TEXT")
     private String origin;
 
-    @Column(name = "item_image")
+    @Column(name = "item_image", columnDefinition = "TEXT")
     private String itemImage;
 
     @Column(name = "created_at", nullable = false)

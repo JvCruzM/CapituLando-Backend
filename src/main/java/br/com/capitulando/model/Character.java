@@ -50,7 +50,7 @@ public class Character {
     @Column(columnDefinition = "TEXT")
     private String background;
 
-    @Column(name = "character_image")
+    @Column(name = "character_image", columnDefinition = "TEXT")
     private String characterImage;
 
     @Column(name = "created_at", nullable = false)

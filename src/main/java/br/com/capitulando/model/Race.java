@@ -40,7 +40,7 @@ public class Race {
     @Column(columnDefinition = "TEXT")
     private String habitat;
 
-    @Column(name = "race_image")
+    @Column(name = "race_image", columnDefinition = "TEXT")
     private String raceImage;
 
     @Column(name = "created_at", nullable = false)

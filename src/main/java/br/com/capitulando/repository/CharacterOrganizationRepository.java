@@ -9,6 +9,7 @@ import java.util.UUID;
 
 @Repository
 public interface CharacterOrganizationRepository extends JpaRepository<CharacterOrganization, UUID> {
+    List<CharacterOrganization> findByStoryId(UUID storyId);
     List<CharacterOrganization> findByCharacterId(UUID characterId);
     List<CharacterOrganization> findByOrganizationId(UUID organizationId);
 }

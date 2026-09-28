@@ -44,7 +44,7 @@ public class Creature {
     @Column(columnDefinition = "TEXT")
     private String habitat;
 
-    @Column(name = "creature_image")
+    @Column(name = "creature_image", columnDefinition = "TEXT")
     private String creatureImage;
 
     @Column(name = "created_at", nullable = false)

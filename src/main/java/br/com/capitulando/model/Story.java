@@ -43,7 +43,7 @@ public class Story {
     @Column(nullable = false, length = 30)
     private StoryStatus status = StoryStatus.DRAFT;
 
-    @Column(name = "cover_image")
+    @Column(name = "cover_image", columnDefinition = "TEXT")
     private String coverImage;
 
     @Column(name = "created_at", nullable = false)
