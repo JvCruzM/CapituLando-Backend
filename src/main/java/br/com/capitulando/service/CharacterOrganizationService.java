@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
+import java.time.Instant;
 
 @Service
 public class CharacterOrganizationService {
@@ -17,6 +18,14 @@ public class CharacterOrganizationService {
     }
 
     public CharacterOrganization save(CharacterOrganization characterOrganization) {
+        Instant now = Instant.now();
+
+        if (characterOrganization.getCreatedAt() == null) {
+            characterOrganization.setCreatedAt(now);
+        }
+
+        characterOrganization.setUpdatedAt(now);
+
         return repository.save(characterOrganization);
     }
 
@@ -26,7 +35,8 @@ public class CharacterOrganizationService {
 
     public CharacterOrganization findById(UUID id) {
         return repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Relação Personagem-Organização não encontrada para o ID: " + id));
+                .orElseThrow(
+                        () -> new RuntimeException("Relação Personagem-Organização não encontrada para o ID: " + id));
     }
 
     public List<CharacterOrganization> findByCharacterId(UUID characterId) {
@@ -53,6 +63,8 @@ public class CharacterOrganizationService {
         if (details.getOrganization() != null) {
             existing.setOrganization(details.getOrganization());
         }
+
+        existing.setUpdatedAt(Instant.now());
 
         return repository.save(existing);
     }

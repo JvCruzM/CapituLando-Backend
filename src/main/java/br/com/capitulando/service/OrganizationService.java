@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
+import java.time.Instant;
 
 @Service
 public class OrganizationService {
@@ -17,6 +18,14 @@ public class OrganizationService {
     }
 
     public Organization save(Organization organization) {
+        Instant now = Instant.now();
+
+        if (organization.getCreatedAt() == null) {
+            organization.setCreatedAt(now);
+        }
+
+        organization.setUpdatedAt(now);
+
         return repository.save(organization);
     }
 
@@ -45,9 +54,11 @@ public class OrganizationService {
             existing.setStory(details.getStory());
         }
 
-        if (details.getHeadquarters() != null) {
-            existing.setHeadquarters(details.getHeadquarters());
+        if (details.getHeadquartersLocation() != null) {
+            existing.setHeadquartersLocation(details.getHeadquartersLocation());
         }
+
+        existing.setUpdatedAt(Instant.now());
 
         return repository.save(existing);
     }

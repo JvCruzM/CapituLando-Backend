@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
+import java.time.Instant;
 
 @Service
 public class EventService {
@@ -17,6 +18,14 @@ public class EventService {
     }
 
     public Event save(Event event) {
+        Instant now = Instant.now();
+
+        if (event.getCreatedAt() == null) {
+            event.setCreatedAt(now);
+        }
+
+        event.setUpdatedAt(now);
+
         return repository.save(event);
     }
 
@@ -57,6 +66,8 @@ public class EventService {
         if (details.getLocation() != null) {
             existing.setLocation(details.getLocation());
         }
+
+        existing.setUpdatedAt(Instant.now());
 
         return repository.save(existing);
     }

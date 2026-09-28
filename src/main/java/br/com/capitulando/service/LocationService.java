@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
+import java.time.Instant;
 
 @Service
 public class LocationService {
@@ -17,6 +18,14 @@ public class LocationService {
     }
 
     public Location save(Location location) {
+        Instant now = Instant.now();
+
+        if (location.getCreatedAt() == null) {
+            location.setCreatedAt(now);
+        }
+
+        location.setUpdatedAt(now);
+
         return repository.save(location);
     }
 
@@ -53,6 +62,8 @@ public class LocationService {
         if (locationDetails.getParentLocation() != null) {
             existingLocation.setParentLocation(locationDetails.getParentLocation());
         }
+
+        existingLocation.setUpdatedAt(Instant.now());
 
         return repository.save(existingLocation);
     }

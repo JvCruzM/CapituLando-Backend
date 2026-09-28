@@ -4,6 +4,7 @@ import br.com.capitulando.model.Chapter;
 import br.com.capitulando.repository.ChapterRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,9 +18,16 @@ public class ChapterService {
     }
 
     public Chapter save(Chapter chapter) {
-        if (chapter.getWordCount() == null) {
-            chapter.setWordCount(countWords(chapter.getContent()));
+        Instant now = Instant.now();
+
+        if (chapter.getCreatedAt() == null) {
+            chapter.setCreatedAt(now);
         }
+
+        chapter.setUpdatedAt(now);
+
+        chapter.setWordCount(countWords(chapter.getContent()));
+
         return repository.save(chapter);
     }
 
@@ -58,6 +66,8 @@ public class ChapterService {
         if (details.getStory() != null) {
             existing.setStory(details.getStory());
         }
+
+        existing.setUpdatedAt(Instant.now());
 
         return repository.save(existing);
     }
