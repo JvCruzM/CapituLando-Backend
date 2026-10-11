@@ -41,6 +41,9 @@ public class Location {
     @Column(length = 100)
     private String climate;
 
+    @Column(length = 100)
+    private String region;
+
     @Column(name = "location_image", columnDefinition = "TEXT")
     private String locationImage;
 
@@ -107,6 +110,14 @@ public class Location {
 
     public void setClimate(String climate) {
         this.climate = climate;
+    }
+
+    public String getRegion() {
+        return region;
+    }
+
+    public void setRegion(String region) {
+        this.region = region;
     }
 
     public String getLocationImage() {

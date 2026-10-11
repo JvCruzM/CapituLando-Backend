@@ -46,6 +46,9 @@ public class Story {
     @Column(name = "cover_image", columnDefinition = "TEXT")
     private String coverImage;
 
+    @Column(name = "progress_percentage", nullable = false)
+    private Integer progressPercentage = 0;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -117,6 +120,14 @@ public class Story {
 
     public void setCoverImage(String coverImage) {
         this.coverImage = coverImage;
+    }
+
+    public Integer getProgressPercentage() {
+        return progressPercentage;
+    }
+
+    public void setProgressPercentage(Integer progressPercentage) {
+        this.progressPercentage = progressPercentage;
     }
 
     public Instant getCreatedAt() {

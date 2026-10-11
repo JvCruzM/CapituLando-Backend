@@ -2,10 +2,17 @@ package br.com.capitulando.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.MapsId;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
+import java.util.Locale;
 import java.util.UUID;
 
 @Entity
@@ -15,7 +22,12 @@ public class Profile {
     @Id
     private UUID id;
 
-    @Column(nullable = false, unique = true, length = 50)
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @MapsId
+    @JoinColumn(name = "id", nullable = false)
+    private User user;
+
+    @Column(nullable = false, length = 50)
     private String username;
 
     @Column(name = "display_name", nullable = false, length = 100)
@@ -36,6 +48,28 @@ public class Profile {
     public Profile() {
     }
 
+    @PrePersist
+    protected void onCreate() {
+        normalizeUsername();
+        Instant now = Instant.now();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        normalizeUsername();
+        updatedAt = Instant.now();
+    }
+
+    private void normalizeUsername() {
+        if (username != null) {
+            username = username.trim().toLowerCase(Locale.ROOT);
+        }
+    }
+
     public UUID getId() {
         return id;
     }
@@ -44,12 +78,26 @@ public class Profile {
         this.id = id;
     }
 
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+        if (user != null) {
+            this.id = user.getId();
+            if (user.getProfile() != this) {
+                user.setProfile(this);
+            }
+        }
+    }
+
     public String getUsername() {
         return username;
     }
 
     public void setUsername(String username) {
-        this.username = username;
+        this.username = username == null ? null : username.trim().toLowerCase(Locale.ROOT);
     }
 
     public String getDisplayName() {

@@ -11,6 +11,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
@@ -52,6 +53,21 @@ public class Character {
 
     @Column(name = "character_image", columnDefinition = "TEXT")
     private String characterImage;
+
+    @Column(name = "role", length = 50)
+    private String role;
+
+    @Column(name = "mbti", length = 8)
+    private String mbti;
+
+    @Column(columnDefinition = "TEXT")
+    private String motivation;
+
+    @Column(columnDefinition = "TEXT")
+    private String notes;
+
+    @Column(name = "birth_date")
+    private LocalDate birthDate;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -148,6 +164,46 @@ public class Character {
 
     public void setCharacterImage(String characterImage) {
         this.characterImage = characterImage;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public String getMbti() {
+        return mbti;
+    }
+
+    public void setMbti(String mbti) {
+        this.mbti = mbti;
+    }
+
+    public String getMotivation() {
+        return motivation;
+    }
+
+    public void setMotivation(String motivation) {
+        this.motivation = motivation;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
+    }
+
+    public LocalDate getBirthDate() {
+        return birthDate;
+    }
+
+    public void setBirthDate(LocalDate birthDate) {
+        this.birthDate = birthDate;
     }
 
     public Instant getCreatedAt() {
