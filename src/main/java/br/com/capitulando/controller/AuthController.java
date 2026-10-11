@@ -93,3 +93,4 @@ public class AuthController {
         return ResponseEntity.ok(new AuthMessageResponse("Senha redefinida com sucesso."));
     }
 }
+    
