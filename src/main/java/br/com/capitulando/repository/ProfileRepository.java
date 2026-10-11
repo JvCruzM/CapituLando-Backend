@@ -7,6 +7,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface ProfileRepository extends JpaRepository<Profile, UUID> {
-
     Optional<Profile> findByUsername(String username);
+
+    Optional<Profile> findByUsernameIgnoreCase(String username);
+
+    boolean existsByUsernameIgnoreCase(String username);
 }
