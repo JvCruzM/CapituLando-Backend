@@ -86,6 +86,22 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+            <plugin>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-maven-plugin</artifactId>
+                <version>${flyway.version}</version>
+                <configuration>
+                    <url>${env.FLYWAY_URL}</url>
+                    <user>${env.FLYWAY_USER}</user>
+                    <password>${env.FLYWAY_PASSWORD}</password>
+                    <locations>
+                        <location>filesystem:src/main/resources/db/migration</location>
+                    </locations>
+                    <baselineVersion>2</baselineVersion>
+                    <baselineDescription>existing_neon_schema</baselineDescription>
+                    <validateMigrationNaming>true</validateMigrationNaming>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>
