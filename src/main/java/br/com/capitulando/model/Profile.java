@@ -84,11 +84,8 @@ public class Profile {
 
     public void setUser(User user) {
         this.user = user;
-        if (user != null) {
-            this.id = user.getId();
-            if (user.getProfile() != this) {
-                user.setProfile(this);
-            }
+        if (user != null && user.getProfile() != this) {
+            user.setProfile(this);
         }
     }
 

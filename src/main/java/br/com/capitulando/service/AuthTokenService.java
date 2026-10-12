@@ -1,114 +1,98 @@
 package br.com.capitulando.service;
 
-import br.com.capitulando.dto.auth.AuthResponse;
-import br.com.capitulando.dto.auth.AuthenticatedUserResponse;
-import br.com.capitulando.dto.auth.LoginRequest;
-import br.com.capitulando.dto.auth.RegisterRequest;
-import br.com.capitulando.exception.EmailNotVerifiedException;
-import br.com.capitulando.exception.InvalidCredentialsException;
+import br.com.capitulando.exception.InvalidAuthTokenException;
+import br.com.capitulando.model.AuthToken;
+import br.com.capitulando.model.AuthTokenPurpose;
 import br.com.capitulando.model.User;
-import br.com.capitulando.repository.UserRepository;
-import br.com.capitulando.security.JwtService;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import br.com.capitulando.repository.AuthTokenRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Locale;
-import java.util.UUID;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Base64;
+import java.util.HexFormat;
+import java.util.List;
 
 @Service
-public class AuthenticationService {
-    private final AccountService accountService;
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtService jwtService;
-    private final MailService mailService;
+public class AuthTokenService {
+    private final AuthTokenRepository authTokenRepository;
+    private final Duration emailVerificationTtl;
+    private final Duration passwordResetTtl;
+    private final SecureRandom secureRandom = new SecureRandom();
 
-    public AuthenticationService(
-            AccountService accountService,
-            UserRepository userRepository,
-            PasswordEncoder passwordEncoder,
-            JwtService jwtService,
-            MailService mailService) {
-        this.accountService = accountService;
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.jwtService = jwtService;
-        this.mailService = mailService;
+    public AuthTokenService(
+            AuthTokenRepository authTokenRepository,
+            @Value("${app.auth.email-verification-ttl:PT24H}") Duration emailVerificationTtl,
+            @Value("${app.auth.password-reset-ttl:PT1H}") Duration passwordResetTtl) {
+        this.authTokenRepository = authTokenRepository;
+        this.emailVerificationTtl = emailVerificationTtl;
+        this.passwordResetTtl = passwordResetTtl;
     }
 
     @Transactional
-    public void register(RegisterRequest request) {
-        AccountService.RegistrationResult result = accountService.register(request);
-        mailService.sendVerificationEmail(result.email(), result.verificationToken());
+    public IssuedToken issue(User user, AuthTokenPurpose purpose) {
+        Instant now = Instant.now();
+        List<AuthToken> activeTokens = authTokenRepository
+                .findAllByUser_IdAndPurposeAndConsumedAtIsNull(user.getId(), purpose);
+        activeTokens.forEach(token -> token.setConsumedAt(now));
+        authTokenRepository.saveAll(activeTokens);
+
+        byte[] tokenBytes = new byte[32];
+        secureRandom.nextBytes(tokenBytes);
+        String rawToken = Base64.getUrlEncoder().withoutPadding().encodeToString(tokenBytes);
+
+        AuthToken token = new AuthToken();
+        token.setUser(user);
+        token.setTokenHash(hash(rawToken));
+        token.setPurpose(purpose);
+        token.setExpiresAt(now.plus(ttlFor(purpose)));
+        authTokenRepository.save(token);
+
+        return new IssuedToken(rawToken, token.getExpiresAt());
     }
 
     @Transactional
-    public void verifyEmail(String rawToken) {
-        accountService.verifyEmail(rawToken);
-    }
-
-    @Transactional
-    public void resendVerification(String email) {
-        accountService.createVerificationToken(email)
-                .ifPresent(token -> mailService.sendVerificationEmail(normalizeEmail(email), token.rawToken()));
-    }
-
-    @Transactional
-    public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
-                .orElseThrow(InvalidCredentialsException::new);
-
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            throw new InvalidCredentialsException();
+    public AuthToken consume(String rawToken, AuthTokenPurpose purpose) {
+        if (rawToken == null || rawToken.isBlank()) {
+            throw new InvalidAuthTokenException();
         }
 
-        if (!user.isEmailVerified()) {
-            throw new EmailNotVerifiedException();
+        AuthToken token = authTokenRepository
+                .findUnconsumedForUpdate(hash(rawToken), purpose)
+                .orElseThrow(InvalidAuthTokenException::new);
+
+        Instant now = Instant.now();
+        if (token.isExpired(now)) {
+            throw new InvalidAuthTokenException();
         }
 
-        AuthenticatedUserResponse authenticatedUser = toResponse(user);
-        return new AuthResponse(
-                jwtService.generateAccessToken(user),
-                "Bearer",
-                jwtService.getAccessTokenTtlSeconds(),
-                authenticatedUser);
+        token.setConsumedAt(now);
+        return authTokenRepository.save(token);
     }
 
-    @Transactional
-    public void requestPasswordReset(String email) {
-        accountService.createPasswordResetToken(email)
-                .ifPresent(token -> mailService.sendPasswordResetEmail(normalizeEmail(email), token.rawToken()));
-    }
-
-    @Transactional
-    public void resetPassword(String rawToken, String newPassword) {
-        accountService.resetPassword(rawToken, newPassword);
-    }
-
-    @Transactional(readOnly = true)
-    public AuthenticatedUserResponse currentUser(UUID userId) {
-        User user = userRepository.findById(userId).orElseThrow(InvalidCredentialsException::new);
-        if (user.getProfile() == null) {
-            throw new InvalidCredentialsException();
+    public String hash(String rawToken) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(rawToken.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 não está disponível.", exception);
         }
-        return toResponse(user);
     }
 
-    private AuthenticatedUserResponse toResponse(User user) {
-        var profile = user.getProfile();
-        if (profile == null) {
-            throw new InvalidCredentialsException();
-        }
-        return new AuthenticatedUserResponse(
-                user.getId(),
-                user.getEmail(),
-                user.isEmailVerified(),
-                profile.getUsername(),
-                profile.getDisplayName());
+    private Duration ttlFor(AuthTokenPurpose purpose) {
+        return switch (purpose) {
+            case EMAIL_VERIFICATION -> emailVerificationTtl;
+            case PASSWORD_RESET -> passwordResetTtl;
+        };
     }
 
-    private String normalizeEmail(String email) {
-        return email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
+    public record IssuedToken(String rawToken, Instant expiresAt) {
     }
 }
