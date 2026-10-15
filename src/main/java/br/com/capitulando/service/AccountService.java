@@ -100,6 +100,7 @@ public class AccountService {
         var token = authTokenService.consume(rawToken, AuthTokenPurpose.PASSWORD_RESET);
         User user = token.getUser();
         user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
     }
 
