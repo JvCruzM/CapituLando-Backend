@@ -2,8 +2,11 @@ package br.com.capitulando.controller;
 
 import br.com.capitulando.model.Creature;
 import br.com.capitulando.service.CreatureService;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,41 +22,63 @@ public class CreatureController {
         this.creatureService = creatureService;
     }
 
-    // 1. CRIAR UMA CRIATURA (POST)
     @PostMapping
-    public ResponseEntity<Creature> create(@RequestBody Creature creature) {
-        Creature savedCreature = creatureService.save(creature);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedCreature);
+    public ResponseEntity<Creature> create(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody Creature creature) {
+        Creature savedCreature = creatureService.save(
+                authenticatedProfileId(jwt),
+                creature);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(savedCreature);
     }
 
-    // 2. LISTAR TODAS AS CRIATURAS (GET)
     @GetMapping
-    public ResponseEntity<List<Creature>> listAll() {
-        List<Creature> creatures = creatureService.findAll();
+    public ResponseEntity<List<Creature>> listAll(
+            @AuthenticationPrincipal Jwt jwt) {
+        List<Creature> creatures = creatureService.findAll(
+                authenticatedProfileId(jwt));
+
         return ResponseEntity.ok(creatures);
     }
 
-    // 3. BUSCAR UMA CRIATURA POR ID (GET)
     @GetMapping("/{id}")
-    public ResponseEntity<Creature> findById(@PathVariable UUID id) {
-        Creature creature = creatureService.findById(id);
+    public ResponseEntity<Creature> findById(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt) {
+        Creature creature = creatureService.findById(
+                id,
+                authenticatedProfileId(jwt));
+
         return ResponseEntity.ok(creature);
     }
 
-    // 4. ATUALIZAR UMA CRIATURA (PUT)
     @PutMapping("/{id}")
     public ResponseEntity<Creature> update(
             @PathVariable UUID id,
-            @RequestBody Creature creature
-    ) {
-        Creature updatedCreature = creatureService.update(id, creature);
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody Creature creature) {
+        Creature updatedCreature = creatureService.update(
+                id,
+                authenticatedProfileId(jwt),
+                creature);
+
         return ResponseEntity.ok(updatedCreature);
     }
 
-    // 5. DELETAR UMA CRIATURA (DELETE)
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        creatureService.delete(id);
+    public ResponseEntity<Void> delete(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt) {
+        creatureService.delete(
+                id,
+                authenticatedProfileId(jwt));
+
         return ResponseEntity.noContent().build();
+    }
+
+    private UUID authenticatedProfileId(Jwt jwt) {
+        return UUID.fromString(jwt.getSubject());
     }
 }

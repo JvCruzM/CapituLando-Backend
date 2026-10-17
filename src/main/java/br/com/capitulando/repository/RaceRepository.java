@@ -10,17 +10,22 @@ import java.util.UUID;
 
 public interface RaceRepository extends JpaRepository<Race, UUID> {
 
-    List<Race> findByStoryId(UUID storyId);
+        List<Race> findByStoryId(UUID storyId);
 
-    List<Race> findByStoryIdAndStory_Profile_Id(
-            UUID storyId,
-            UUID profileId);
+        List<Race> findByStoryIdAndStory_Profile_Id(
+                        UUID storyId,
+                        UUID profileId);
 
-    @EntityGraph(attributePaths = "story.profile")
-    List<Race> findAllByStory_Profile_Id(UUID profileId);
+        @EntityGraph(attributePaths = "story.profile")
+        List<Race> findAllByStory_Profile_Id(UUID profileId);
 
-    @EntityGraph(attributePaths = "story.profile")
-    Optional<Race> findByIdAndStory_Profile_Id(
-            UUID id,
-            UUID profileId);
+        @EntityGraph(attributePaths = "story.profile")
+        Optional<Race> findByIdAndStory_Profile_Id(
+                        UUID id,
+                        UUID profileId);
+
+        Optional<Race> findByIdAndStory_IdAndStory_Profile_Id(
+                        UUID id,
+                        UUID storyId,
+                        UUID profileId);
 }

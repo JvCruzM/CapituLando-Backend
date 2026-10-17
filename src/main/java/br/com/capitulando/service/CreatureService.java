@@ -1,8 +1,15 @@
 package br.com.capitulando.service;
 
 import br.com.capitulando.model.Creature;
+import br.com.capitulando.model.Race;
+import br.com.capitulando.model.Story;
 import br.com.capitulando.repository.CreatureRepository;
+import br.com.capitulando.repository.RaceRepository;
+import br.com.capitulando.repository.StoryRepository;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.List;
@@ -12,69 +19,165 @@ import java.util.UUID;
 public class CreatureService {
 
     private final CreatureRepository repository;
+    private final StoryRepository storyRepository;
+    private final RaceRepository raceRepository;
 
-    // Construtor: o Spring injeta o Repository automaticamente aqui
-    public CreatureService(CreatureRepository repository) {
+    public CreatureService(
+            CreatureRepository repository,
+            StoryRepository storyRepository,
+            RaceRepository raceRepository) {
         this.repository = repository;
+        this.storyRepository = storyRepository;
+        this.raceRepository = raceRepository;
     }
 
-    // SALVAR
-    public Creature save(Creature creature) {
-        // Preenche as datas automaticamente antes de salvar
-        creature.setCreatedAt(Instant.now());
-        creature.setUpdatedAt(Instant.now());
-        return repository.save(creature);
+    public Creature save(UUID profileId, Creature creature) {
+        if (creature.getStory() == null
+                || creature.getStory().getId() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "História não encontrada.");
+        }
+
+        Story story = findOwnedStory(
+                creature.getStory().getId(),
+                profileId);
+
+        Race race = null;
+
+        if (creature.getRace() != null) {
+            UUID raceId = creature.getRace().getId();
+
+            if (raceId == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Raça não encontrada nesta história.");
+            }
+
+            race = findOwnedRace(
+                    raceId,
+                    story.getId(),
+                    profileId);
+        }
+
+        creature.setId(null);
+        creature.setStory(story);
+        creature.setRace(race);
+
+        Instant now = Instant.now();
+        creature.setCreatedAt(now);
+        creature.setUpdatedAt(now);
+
+        Creature saved = repository.save(creature);
+
+        return findById(saved.getId(), profileId);
     }
 
-    // LISTAR TODOS
-    public List<Creature> findAll() {
-        return repository.findAll();
+    public List<Creature> findAll(UUID profileId) {
+        return repository.findAllByStory_Profile_Id(profileId);
     }
 
-    // BUSCAR POR ID
-    public Creature findById(UUID id) {
-        // O Optional lida com o caso de "E se a criatura não for encontrada?"
-        return repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Criatura não encontrada para o ID: " + id));
+    public Creature findById(UUID id, UUID profileId) {
+        return repository.findByIdAndStory_Profile_Id(id, profileId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Criatura não encontrada."));
     }
 
-    // BUSCAR POR ID DA HISTÓRIA
-    public List<Creature> findByStoryId(UUID storyId) {
-        return repository.findByStoryId(storyId);
+    public List<Creature> findByStoryId(
+            UUID storyId,
+            UUID profileId) {
+        findOwnedStory(storyId, profileId);
+
+        return repository.findByStoryIdAndStory_Profile_Id(
+                storyId,
+                profileId);
     }
 
-    // ATUALIZAR
-    public Creature update(UUID id, Creature creatureDetails) {
-        // 1. Busca a criatura existente no banco (ou lança erro se não achar)
-        Creature existingCreature = findById(id); 
+    public Creature update(
+            UUID id,
+            UUID profileId,
+            Creature creatureDetails) {
+        Creature existingCreature = findById(id, profileId);
 
-        // 2. Atualiza apenas os dados permitidos
+        Story targetStory = existingCreature.getStory();
+
+        if (creatureDetails.getStory() != null) {
+            UUID storyId = creatureDetails.getStory().getId();
+
+            if (storyId == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "História não encontrada.");
+            }
+
+            targetStory = findOwnedStory(storyId, profileId);
+        }
+
+        Race targetRace = existingCreature.getRace();
+
+        if (creatureDetails.getRace() != null) {
+            UUID raceId = creatureDetails.getRace().getId();
+
+            if (raceId == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Raça não encontrada nesta história.");
+            }
+
+            targetRace = findOwnedRace(
+                    raceId,
+                    targetStory.getId(),
+                    profileId);
+        } else if (targetRace != null) {
+            targetRace = findOwnedRace(
+                    targetRace.getId(),
+                    targetStory.getId(),
+                    profileId);
+        }
+
         existingCreature.setName(creatureDetails.getName());
-        existingCreature.setDescription(creatureDetails.getDescription());
-        existingCreature.setAppearance(creatureDetails.getAppearance());
+        existingCreature.setDescription(
+                creatureDetails.getDescription());
+        existingCreature.setAppearance(
+                creatureDetails.getAppearance());
         existingCreature.setBehavior(creatureDetails.getBehavior());
         existingCreature.setHabitat(creatureDetails.getHabitat());
-        existingCreature.setCreatureImage(creatureDetails.getCreatureImage());
-        
-        // Atualiza os relacionamentos (se o usuário mandar na requisição)
-        if (creatureDetails.getStory() != null) {
-            existingCreature.setStory(creatureDetails.getStory());
-        }
-        if (creatureDetails.getRace() != null) {
-            existingCreature.setRace(creatureDetails.getRace());
-        }
+        existingCreature.setCreatureImage(
+                creatureDetails.getCreatureImage());
 
-        // 3. Atualiza a data de modificação
+        existingCreature.setStory(targetStory);
+        existingCreature.setRace(targetRace);
         existingCreature.setUpdatedAt(Instant.now());
 
-        // 4. Salva a criatura com os novos dados
-        return repository.save(existingCreature);
+        repository.save(existingCreature);
+
+        return findById(id, profileId);
     }
 
-    // DELETAR
-    public void delete(UUID id) {
-        // Busca primeiro para garantir que existe, depois deleta
-        Creature existingCreature = findById(id);
+    public void delete(UUID id, UUID profileId) {
+        Creature existingCreature = findById(id, profileId);
         repository.delete(existingCreature);
+    }
+
+    private Story findOwnedStory(UUID storyId, UUID profileId) {
+        return storyRepository.findByIdAndProfileId(storyId, profileId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "História não encontrada."));
+    }
+
+    private Race findOwnedRace(
+            UUID raceId,
+            UUID storyId,
+            UUID profileId) {
+        return raceRepository
+                .findByIdAndStory_IdAndStory_Profile_Id(
+                        raceId,
+                        storyId,
+                        profileId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Raça não encontrada nesta história."));
     }
 }
