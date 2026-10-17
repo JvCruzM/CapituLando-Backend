@@ -4,10 +4,15 @@ import br.com.capitulando.model.Profile;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 public interface ProfileRepository extends JpaRepository<Profile, UUID> {
     Optional<Profile> findByIdAndUser_Id(UUID id, UUID userId);
+
+    List<Profile> findAllByUser_Id(UUID userId);
+
+    Optional<Profile> findByUsernameAndUser_Id(String username, UUID userId);
 
     Optional<Profile> findByUsername(String username);
 

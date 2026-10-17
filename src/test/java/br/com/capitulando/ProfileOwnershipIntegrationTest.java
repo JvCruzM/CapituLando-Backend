@@ -19,8 +19,12 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -38,6 +42,38 @@ class ProfileOwnershipIntegrationTest {
         private PasswordEncoder passwordEncoder;
         @Autowired
         private JwtService jwtService;
+
+        @Test
+        void listagemDeveExibirSomentePerfilDoUsuarioAutenticado() throws Exception {
+                TestAccount owner = createAccount();
+                TestAccount other = createAccount();
+
+                mockMvc.perform(get("/profiles")
+                                .header("Authorization", "Bearer " + owner.token()))
+                                .andExpect(status().isOk())
+                                .andExpect(content().string(containsString(owner.profile().getUsername())))
+                                .andExpect(content().string(not(containsString(other.profile().getUsername()))));
+        }
+
+        @Test
+        void usuarioNaoDeveConsultarPerfilAlheioPorIdOuUsername() throws Exception {
+                TestAccount owner = createAccount();
+                TestAccount other = createAccount();
+                String authorization = "Bearer " + owner.token();
+
+                mockMvc.perform(get("/profiles/{id}", other.profile().getId())
+                                .header("Authorization", authorization))
+                                .andExpect(status().isNotFound());
+
+                mockMvc.perform(get("/profiles/username/{username}", other.profile().getUsername())
+                                .header("Authorization", authorization))
+                                .andExpect(status().isNotFound());
+
+                mockMvc.perform(get("/profiles/{id}", owner.profile().getId())
+                                .header("Authorization", authorization))
+                                .andExpect(status().isOk())
+                                .andExpect(content().string(containsString(owner.profile().getUsername())));
+        }
 
         @Test
         void usuarioNaoDeveCriarPerfilNoLugarDeOutraConta() throws Exception {

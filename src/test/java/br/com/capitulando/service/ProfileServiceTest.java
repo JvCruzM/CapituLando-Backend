@@ -135,75 +135,74 @@ class ProfileServiceTest {
     }
 
     @Test
-    void findAll_deveRetornarTodosOsPerfis() {
+    void findAll_deveRetornarSomentePerfisDoUsuario() {
         List<Profile> profiles = List.of(profile);
+        UUID userId = profile.getId();
 
-        when(repository.findAll()).thenReturn(profiles);
+        when(repository.findAllByUser_Id(userId)).thenReturn(profiles);
 
-        List<Profile> result = service.findAll();
+        List<Profile> result = service.findAll(userId);
 
         assertEquals(profiles, result);
-        verify(repository).findAll();
+        verify(repository).findAllByUser_Id(userId);
     }
 
     @Test
     void findById_deveRetornarPerfilQuandoEncontrado() {
         UUID id = profile.getId();
 
-        when(repository.findById(id)).thenReturn(Optional.of(profile));
+        when(repository.findByIdAndUser_Id(id, id)).thenReturn(Optional.of(profile));
 
-        Profile result = service.findById(id);
+        Profile result = service.findById(id, id);
 
         assertEquals(profile, result);
-        verify(repository).findById(id);
+        verify(repository).findByIdAndUser_Id(id, id);
     }
 
     @Test
     void findById_deveLancarExcecaoQuandoPerfilNaoForEncontrado() {
         UUID id = profile.getId();
 
-        when(repository.findById(id)).thenReturn(Optional.empty());
+        when(repository.findByIdAndUser_Id(id, id)).thenReturn(Optional.empty());
 
         RuntimeException exception = assertThrows(
                 RuntimeException.class,
-                () -> service.findById(id));
+                () -> service.findById(id, id));
 
-        assertEquals(
-                "Perfil não encontrado para o ID: " + id,
-                exception.getMessage());
+        assertTrue(exception.getMessage().contains("Perfil não encontrado"));
 
-        verify(repository).findById(id);
+        verify(repository).findByIdAndUser_Id(id, id);
     }
 
     @Test
     void findByUsername_deveRetornarPerfilQuandoEncontrado() {
         String username = profile.getUsername();
 
-        when(repository.findByUsername(username))
+        UUID userId = profile.getId();
+        when(repository.findByUsernameAndUser_Id(username, userId))
                 .thenReturn(Optional.of(profile));
 
-        Profile result = service.findByUsername(username);
+        Profile result = service.findByUsername(username, userId);
 
         assertEquals(profile, result);
-        verify(repository).findByUsername(username);
+        verify(repository).findByUsernameAndUser_Id(username, userId);
     }
 
     @Test
     void findByUsername_deveLancarExcecaoQuandoPerfilNaoForEncontrado() {
         String username = profile.getUsername();
 
-        when(repository.findByUsername(username))
+        UUID userId = profile.getId();
+        when(repository.findByUsernameAndUser_Id(username, userId))
                 .thenReturn(Optional.empty());
 
         RuntimeException exception = assertThrows(
                 RuntimeException.class,
-                () -> service.findByUsername(username));
+                () -> service.findByUsername(username, userId));
 
-        assertEquals(
-                "Perfil não encontrado para o username: " + username,
-                exception.getMessage());
+        assertTrue(exception.getMessage().contains("Perfil não encontrado"));
 
-        verify(repository).findByUsername(username);
+        verify(repository).findByUsernameAndUser_Id(username, userId);
     }
 
     @Test

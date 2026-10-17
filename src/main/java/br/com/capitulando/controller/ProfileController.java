@@ -30,24 +30,29 @@ public class ProfileController {
         return ResponseEntity.status(HttpStatus.CREATED).body(savedProfile);
     }
 
-    // 2. LISTAR TODOS OS PERFIS (GET)
     @GetMapping
-    public ResponseEntity<List<Profile>> listAll() {
-        List<Profile> profiles = profileService.findAll();
+    public ResponseEntity<List<Profile>> listAll(
+            @AuthenticationPrincipal Jwt jwt) {
+        List<Profile> profiles = profileService.findAll(
+                authenticatedProfileId(jwt));
         return ResponseEntity.ok(profiles);
     }
 
-    // 3. BUSCAR PERFIL POR ID (GET)
     @GetMapping("/{id}")
-    public ResponseEntity<Profile> findById(@PathVariable UUID id) {
-        Profile profile = profileService.findById(id);
+    public ResponseEntity<Profile> findById(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt) {
+        Profile profile = profileService.findById(
+                id, authenticatedProfileId(jwt));
         return ResponseEntity.ok(profile);
     }
 
-    // 4. BUSCAR PERFIL POR USERNAME (GET) - Ex: /profiles/username/joao123
     @GetMapping("/username/{username}")
-    public ResponseEntity<Profile> findByUsername(@PathVariable String username) {
-        Profile profile = profileService.findByUsername(username);
+    public ResponseEntity<Profile> findByUsername(
+            @PathVariable String username,
+            @AuthenticationPrincipal Jwt jwt) {
+        Profile profile = profileService.findByUsername(
+                username, authenticatedProfileId(jwt));
         return ResponseEntity.ok(profile);
     }
 

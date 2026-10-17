@@ -51,18 +51,19 @@ public class ProfileService {
         return repository.save(profile);
     }
 
-    public List<Profile> findAll() {
-        return repository.findAll();
+    public List<Profile> findAll(UUID authenticatedUserId) {
+        return repository.findAllByUser_Id(authenticatedUserId);
     }
 
-    public Profile findById(UUID id) {
-        return repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Perfil não encontrado para o ID: " + id));
+    public Profile findById(UUID id, UUID authenticatedUserId) {
+        return findOwnedProfile(id, authenticatedUserId);
     }
 
-    public Profile findByUsername(String username) {
-        return repository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Perfil não encontrado para o username: " + username));
+    public Profile findByUsername(String username, UUID authenticatedUserId) {
+        return repository.findByUsernameAndUser_Id(username, authenticatedUserId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Perfil não encontrado."));
     }
 
     public Profile update(
