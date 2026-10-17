@@ -1,5 +1,6 @@
 package br.com.capitulando.config;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -59,11 +60,15 @@ public class SecurityConfiguration {
         @Bean
         CorsConfigurationSource corsConfigurationSource(
                         @Value("${app.frontend-url:http://localhost:3000}") String frontendUrl) {
-                String origin = frontendUrl.replaceAll("/+$", "");
+                List<String> origins = Arrays.stream(frontendUrl.split(","))
+                                .map(String::trim)
+                                .filter(s -> !s.isEmpty())
+                                .map(s -> s.replaceAll("/+$", ""))
+                                .toList();
                 CorsConfiguration configuration = new CorsConfiguration();
-                configuration.setAllowedOrigins(List.of(origin));
+                configuration.setAllowedOrigins(origins);
                 configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-                configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+                configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With"));
                 configuration.setAllowCredentials(false);
                 UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
                 source.registerCorsConfiguration("/**", configuration);
