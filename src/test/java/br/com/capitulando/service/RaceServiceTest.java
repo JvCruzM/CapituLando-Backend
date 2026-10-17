@@ -1,12 +1,17 @@
 package br.com.capitulando.service;
 
+import br.com.capitulando.model.Profile;
 import br.com.capitulando.model.Race;
+import br.com.capitulando.model.Story;
 import br.com.capitulando.repository.RaceRepository;
+import br.com.capitulando.repository.StoryRepository;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.List;
@@ -23,21 +28,53 @@ class RaceServiceTest {
     @Mock
     private RaceRepository repository;
 
+    @Mock
+    private StoryRepository storyRepository;
+
     @InjectMocks
     private RaceService service;
 
     @Test
-    void save_deveDefinirDatasEDelegarAoRepositorio() {
-        Race entity = new Race();
+    void save_deveDefinirDatasESalvarNaHistoriaDoUsuario() {
+        UUID profileId = UUID.randomUUID();
+        UUID storyId = UUID.randomUUID();
+        UUID raceId = UUID.randomUUID();
+
+        Profile profile = new Profile();
+        profile.setId(profileId);
+
+        Story ownedStory = new Story();
+        ownedStory.setId(storyId);
+        ownedStory.setProfile(profile);
+
+        Story storyReference = new Story();
+        storyReference.setId(storyId);
+
+        Race race = new Race();
+        race.setName("Elfos");
+        race.setStory(storyReference);
+
+        when(storyRepository.findByIdAndProfileId(storyId, profileId))
+                .thenReturn(Optional.of(ownedStory));
 
         when(repository.save(any(Race.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenAnswer(invocation -> {
+                    Race saved = invocation.getArgument(0);
+                    saved.setId(raceId);
+                    return saved;
+                });
+
+        when(repository.findByIdAndStory_Profile_Id(raceId, profileId))
+                .thenAnswer(invocation -> Optional.of(race));
 
         Instant before = Instant.now();
-        Race result = service.save(entity);
+
+        Race result = service.save(profileId, race);
+
         Instant after = Instant.now();
 
-        assertSame(entity, result);
+        assertEquals(raceId, result.getId());
+        assertSame(ownedStory, result.getStory());
         assertNotNull(result.getCreatedAt());
         assertNotNull(result.getUpdatedAt());
         assertFalse(result.getCreatedAt().isBefore(before));
@@ -45,88 +82,191 @@ class RaceServiceTest {
         assertFalse(result.getUpdatedAt().isBefore(before));
         assertFalse(result.getUpdatedAt().isAfter(after));
 
-        verify(repository).save(entity);
+        verify(storyRepository).findByIdAndProfileId(storyId, profileId);
+        verify(repository).save(race);
+        verify(repository).findByIdAndStory_Profile_Id(raceId, profileId);
     }
 
     @Test
-    void findAll_deveRetornarResultadosDoRepositorio() {
-        Race entity = new Race();
-        List<Race> expected = List.of(entity);
-        when(repository.findAll()).thenReturn(expected);
+    void save_deveRejeitarHistoriaDeOutroUsuario() {
+        UUID profileId = UUID.randomUUID();
+        UUID storyId = UUID.randomUUID();
 
-        List<Race> result = service.findAll();
+        Story storyReference = new Story();
+        storyReference.setId(storyId);
+
+        Race race = new Race();
+        race.setName("Elfos");
+        race.setStory(storyReference);
+
+        when(storyRepository.findByIdAndProfileId(storyId, profileId))
+                .thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.save(profileId, race));
+
+        assertEquals(404, exception.getStatusCode().value());
+        verify(repository, never()).save(any(Race.class));
+    }
+
+    @Test
+    void findAll_deveRetornarSomenteRacasDoPerfil() {
+        UUID profileId = UUID.randomUUID();
+        List<Race> expected = List.of(new Race());
+
+        when(repository.findAllByStory_Profile_Id(profileId))
+                .thenReturn(expected);
+
+        List<Race> result = service.findAll(profileId);
 
         assertEquals(expected, result);
-        verify(repository).findAll();
+        verify(repository).findAllByStory_Profile_Id(profileId);
     }
 
     @Test
-    void findById_deveRetornarEntidadeQuandoEncontrada() {
-        UUID id = UUID.randomUUID();
-        Race entity = new Race();
-        entity.setId(id);
-        when(repository.findById(id)).thenReturn(Optional.of(entity));
+    void findById_deveRetornarRacaDoPerfil() {
+        UUID profileId = UUID.randomUUID();
+        UUID raceId = UUID.randomUUID();
 
-        Race result = service.findById(id);
+        Race race = new Race();
+        race.setId(raceId);
 
-        assertSame(entity, result);
-        verify(repository).findById(id);
+        when(repository.findByIdAndStory_Profile_Id(raceId, profileId))
+                .thenReturn(Optional.of(race));
+
+        Race result = service.findById(raceId, profileId);
+
+        assertSame(race, result);
+        verify(repository).findByIdAndStory_Profile_Id(raceId, profileId);
     }
 
     @Test
-    void findById_deveLancarExcecaoQuandoNaoEncontrada() {
-        UUID id = UUID.randomUUID();
-        when(repository.findById(id)).thenReturn(Optional.empty());
+    void findById_deveLancar404QuandoRacaNaoPertencerAoPerfil() {
+        UUID profileId = UUID.randomUUID();
+        UUID raceId = UUID.randomUUID();
 
-        assertThrows(RuntimeException.class, () -> service.findById(id));
+        when(repository.findByIdAndStory_Profile_Id(raceId, profileId))
+                .thenReturn(Optional.empty());
 
-        verify(repository).findById(id);
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.findById(raceId, profileId));
+
+        assertEquals(404, exception.getStatusCode().value());
     }
 
     @Test
-    void update_deveAtualizarCampoESalvarEntidade() {
-        UUID id = UUID.randomUUID();
+    void update_deveAtualizarRacaPropria() {
+        UUID profileId = UUID.randomUUID();
+        UUID raceId = UUID.randomUUID();
+
         Race existing = new Race();
-        existing.setId(id);
-        existing.setName("Valor antigo");
+        existing.setId(raceId);
+        existing.setName("Nome antigo");
+
         Race details = new Race();
         details.setName("Raça atualizada");
-        when(repository.findById(id)).thenReturn(Optional.of(existing));
-        when(repository.save(any(Race.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
 
-        Race result = service.update(id, details);
+        when(repository.findByIdAndStory_Profile_Id(raceId, profileId))
+                .thenReturn(Optional.of(existing));
+
+        when(repository.save(existing)).thenReturn(existing);
+
+        Race result = service.update(raceId, profileId, details);
 
         assertSame(existing, result);
         assertEquals("Raça atualizada", result.getName());
         assertNotNull(result.getUpdatedAt());
-        verify(repository).findById(id);
+
         verify(repository).save(existing);
     }
 
     @Test
-    void delete_deveExcluirEntidadeEncontrada() {
-        UUID id = UUID.randomUUID();
+    void update_deveRejeitarMovimentacaoParaHistoriaAlheia() {
+        UUID profileId = UUID.randomUUID();
+        UUID raceId = UUID.randomUUID();
+        UUID otherStoryId = UUID.randomUUID();
+
         Race existing = new Race();
-        existing.setId(id);
-        when(repository.findById(id)).thenReturn(Optional.of(existing));
+        existing.setId(raceId);
+        existing.setName("Nome original");
 
-        service.delete(id);
+        Story otherStoryReference = new Story();
+        otherStoryReference.setId(otherStoryId);
 
-        verify(repository).findById(id);
+        Race details = new Race();
+        details.setName("Nome alterado");
+        details.setStory(otherStoryReference);
+
+        when(repository.findByIdAndStory_Profile_Id(raceId, profileId))
+                .thenReturn(Optional.of(existing));
+
+        when(storyRepository.findByIdAndProfileId(otherStoryId, profileId))
+                .thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.update(raceId, profileId, details));
+
+        assertEquals(404, exception.getStatusCode().value());
+        assertEquals("Nome original", existing.getName());
+
+        verify(repository, never()).save(any(Race.class));
+    }
+
+    @Test
+    void delete_deveExcluirRacaPropria() {
+        UUID profileId = UUID.randomUUID();
+        UUID raceId = UUID.randomUUID();
+
+        Race existing = new Race();
+        existing.setId(raceId);
+
+        when(repository.findByIdAndStory_Profile_Id(raceId, profileId))
+                .thenReturn(Optional.of(existing));
+
+        service.delete(raceId, profileId);
+
         verify(repository).delete(existing);
     }
 
     @Test
-    void findByStoryId_deveDelegarAoRepositorio() {
-        UUID storyId = UUID.randomUUID();
-        List<Race> expected = List.of(new Race());
-        when(repository.findByStoryId(storyId)).thenReturn(expected);
+    void delete_naoDeveExcluirRacaDeOutroUsuario() {
+        UUID profileId = UUID.randomUUID();
+        UUID raceId = UUID.randomUUID();
 
-        List<Race> result = service.findByStoryId(storyId);
+        when(repository.findByIdAndStory_Profile_Id(raceId, profileId))
+                .thenReturn(Optional.empty());
 
-        assertEquals(expected, result);
-        verify(repository).findByStoryId(storyId);
+        assertThrows(
+                ResponseStatusException.class,
+                () -> service.delete(raceId, profileId));
+
+        verify(repository, never()).delete(any(Race.class));
     }
 
+    @Test
+    void findByStoryId_deveVerificarPropriedadeAntesDeListar() {
+        UUID profileId = UUID.randomUUID();
+        UUID storyId = UUID.randomUUID();
+
+        Story story = new Story();
+        story.setId(storyId);
+
+        List<Race> expected = List.of(new Race());
+
+        when(storyRepository.findByIdAndProfileId(storyId, profileId))
+                .thenReturn(Optional.of(story));
+
+        when(repository.findByStoryIdAndStory_Profile_Id(storyId, profileId))
+                .thenReturn(expected);
+
+        List<Race> result = service.findByStoryId(storyId, profileId);
+
+        assertEquals(expected, result);
+
+        verify(storyRepository).findByIdAndProfileId(storyId, profileId);
+        verify(repository).findByStoryIdAndStory_Profile_Id(storyId, profileId);
+    }
 }

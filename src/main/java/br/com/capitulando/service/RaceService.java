@@ -1,8 +1,13 @@
 package br.com.capitulando.service;
 
 import br.com.capitulando.model.Race;
+import br.com.capitulando.model.Story;
 import br.com.capitulando.repository.RaceRepository;
+import br.com.capitulando.repository.StoryRepository;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.List;
@@ -12,39 +17,83 @@ import java.util.UUID;
 public class RaceService {
 
     private final RaceRepository repository;
+    private final StoryRepository storyRepository;
 
-    public RaceService(RaceRepository repository) {
+    public RaceService(
+            RaceRepository repository,
+            StoryRepository storyRepository) {
         this.repository = repository;
+        this.storyRepository = storyRepository;
     }
 
-    public Race save(Race race) {
-        Instant now = Instant.now();
-
-        if (race.getCreatedAt() == null) {
-            race.setCreatedAt(now);
+    public Race save(UUID profileId, Race race) {
+        if (race.getStory() == null
+                || race.getStory().getId() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "História não encontrada.");
         }
 
+        Story story = findOwnedStory(
+                race.getStory().getId(),
+                profileId);
+
+        // A raça e sua história são definidas após validar a propriedade.
+        race.setId(null);
+        race.setStory(story);
+
+        Instant now = Instant.now();
+        race.setCreatedAt(now);
         race.setUpdatedAt(now);
 
-        return repository.save(race);
+        Race saved = repository.save(race);
+
+        return findById(saved.getId(), profileId);
     }
 
-    public List<Race> findAll() {
-        return repository.findAll();
+    public List<Race> findAll(UUID profileId) {
+        return repository.findAllByStory_Profile_Id(profileId);
     }
 
-    public Race findById(UUID id) {
-        return repository.findById(id)
-                .orElseThrow(() ->
-                        new RuntimeException("Raça não encontrada para o ID: " + id));
+    public Race findById(UUID id, UUID profileId) {
+        return repository.findByIdAndStory_Profile_Id(id, profileId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Raça não encontrada."));
     }
 
-    public List<Race> findByStoryId(UUID storyId) {
-        return repository.findByStoryId(storyId);
+    public List<Race> findByStoryId(
+            UUID storyId,
+            UUID profileId) {
+        // Não retornar uma lista vazia quando a história é alheia:
+        // primeiro verificamos se o usuário tem acesso a ela.
+        findOwnedStory(storyId, profileId);
+
+        return repository.findByStoryIdAndStory_Profile_Id(
+                storyId,
+                profileId);
     }
 
-    public Race update(UUID id, Race raceDetails) {
-        Race existingRace = findById(id);
+    public Race update(
+            UUID id,
+            UUID profileId,
+            Race raceDetails) {
+        Race existingRace = findById(id, profileId);
+
+        // Validar a história de destino antes de modificar qualquer campo.
+        Story targetStory = null;
+
+        if (raceDetails.getStory() != null) {
+            UUID storyId = raceDetails.getStory().getId();
+
+            if (storyId == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "História não encontrada.");
+            }
+
+            targetStory = findOwnedStory(storyId, profileId);
+        }
 
         existingRace.setName(raceDetails.getName());
         existingRace.setDescription(raceDetails.getDescription());
@@ -53,17 +102,26 @@ public class RaceService {
         existingRace.setHabitat(raceDetails.getHabitat());
         existingRace.setRaceImage(raceDetails.getRaceImage());
 
-        if (raceDetails.getStory() != null) {
-            existingRace.setStory(raceDetails.getStory());
+        if (targetStory != null) {
+            existingRace.setStory(targetStory);
         }
 
         existingRace.setUpdatedAt(Instant.now());
 
-        return repository.save(existingRace);
+        repository.save(existingRace);
+
+        return findById(id, profileId);
     }
 
-    public void delete(UUID id) {
-        Race existingRace = findById(id);
+    public void delete(UUID id, UUID profileId) {
+        Race existingRace = findById(id, profileId);
         repository.delete(existingRace);
+    }
+
+    private Story findOwnedStory(UUID storyId, UUID profileId) {
+        return storyRepository.findByIdAndProfileId(storyId, profileId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "História não encontrada."));
     }
 }
