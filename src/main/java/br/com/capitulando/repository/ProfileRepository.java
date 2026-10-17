@@ -7,6 +7,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface ProfileRepository extends JpaRepository<Profile, UUID> {
+    Optional<Profile> findByIdAndUser_Id(UUID id, UUID userId);
+
     Optional<Profile> findByUsername(String username);
 
     Optional<Profile> findByUsernameIgnoreCase(String username);

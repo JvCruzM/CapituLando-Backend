@@ -4,6 +4,8 @@ import br.com.capitulando.model.Profile;
 import br.com.capitulando.service.ProfileService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,10 +21,12 @@ public class ProfileController {
         this.profileService = profileService;
     }
 
-    // 1. CRIAR UM PERFIL (POST)
     @PostMapping
-    public ResponseEntity<Profile> create(@RequestBody Profile profile) {
-        Profile savedProfile = profileService.save(profile);
+    public ResponseEntity<Profile> create(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody Profile profile) {
+        Profile savedProfile = profileService.save(
+                authenticatedProfileId(jwt), profile);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedProfile);
     }
 
@@ -47,17 +51,25 @@ public class ProfileController {
         return ResponseEntity.ok(profile);
     }
 
-    // 5. ATUALIZAR PERFIL (PUT)
     @PutMapping("/{id}")
-    public ResponseEntity<Profile> update(@PathVariable UUID id, @RequestBody Profile profile) {
-        Profile updatedProfile = profileService.update(id, profile);
+    public ResponseEntity<Profile> update(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody Profile profile) {
+        Profile updatedProfile = profileService.update(
+                id, authenticatedProfileId(jwt), profile);
         return ResponseEntity.ok(updatedProfile);
     }
 
-    // 6. DELETAR PERFIL (DELETE)
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        profileService.delete(id);
+    public ResponseEntity<Void> delete(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt) {
+        profileService.delete(id, authenticatedProfileId(jwt));
         return ResponseEntity.noContent().build();
+    }
+
+    private UUID authenticatedProfileId(Jwt jwt) {
+        return UUID.fromString(jwt.getSubject());
     }
 }

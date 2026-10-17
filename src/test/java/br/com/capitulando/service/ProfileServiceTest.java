@@ -1,7 +1,9 @@
 package br.com.capitulando.service;
 
 import br.com.capitulando.model.Profile;
+import br.com.capitulando.model.User;
 import br.com.capitulando.repository.ProfileRepository;
+import br.com.capitulando.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,6 +25,9 @@ class ProfileServiceTest {
     @Mock
     private ProfileRepository repository;
 
+    @Mock
+    private UserRepository userRepository;
+
     @InjectMocks
     private ProfileService service;
 
@@ -40,16 +45,22 @@ class ProfileServiceTest {
 
     @Test
     void save_deveSalvarPerfilComDatasPreenchidas() {
+        UUID authenticatedUserId = UUID.randomUUID();
+        User user = new User();
+        when(repository.existsById(authenticatedUserId)).thenReturn(false);
+        when(userRepository.findById(authenticatedUserId)).thenReturn(Optional.of(user));
         when(repository.save(any(Profile.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         Instant antes = Instant.now();
 
-        Profile result = service.save(profile);
+        Profile result = service.save(authenticatedUserId, profile);
 
         Instant depois = Instant.now();
 
         assertSame(profile, result);
+        assertEquals(authenticatedUserId, result.getId());
+        assertSame(user, result.getUser());
         assertNotNull(result.getCreatedAt());
         assertNotNull(result.getUpdatedAt());
 
@@ -60,34 +71,67 @@ class ProfileServiceTest {
         assertFalse(result.getUpdatedAt().isAfter(depois));
 
         verify(repository).save(profile);
+        verify(userRepository).findById(authenticatedUserId);
+    }
+
+    @Test
+    void save_deveIgnorarIdEnviadoNoCorpo() {
+        UUID authenticatedUserId = UUID.randomUUID();
+        User user = new User();
+        profile.setId(UUID.randomUUID());
+        when(repository.existsById(authenticatedUserId)).thenReturn(false);
+        when(userRepository.findById(authenticatedUserId)).thenReturn(Optional.of(user));
+        when(repository.save(any(Profile.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Profile result = service.save(authenticatedUserId, profile);
+
+        assertEquals(authenticatedUserId, result.getId());
+        assertSame(user, result.getUser());
+    }
+
+    @Test
+    void save_naoDeveSubstituirPerfilExistente() {
+        UUID authenticatedUserId = UUID.randomUUID();
+        when(repository.existsById(authenticatedUserId)).thenReturn(true);
+
+        assertThrows(RuntimeException.class,
+                () -> service.save(authenticatedUserId, profile));
+
+        verifyNoInteractions(userRepository);
+        verify(repository, never()).save(any(Profile.class));
+    }
+
+    @Test
+    void save_deveLancarExcecaoQuandoUsuarioNaoExistir() {
+        UUID authenticatedUserId = UUID.randomUUID();
+        when(repository.existsById(authenticatedUserId)).thenReturn(false);
+        when(userRepository.findById(authenticatedUserId)).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class,
+                () -> service.save(authenticatedUserId, profile));
+
+        verify(repository, never()).save(any(Profile.class));
     }
 
     @Test
     void save_naoDeveAlterarCreatedAtQuandoJaExistir() {
+        UUID authenticatedUserId = UUID.randomUUID();
+        User user = new User();
+        when(repository.existsById(authenticatedUserId)).thenReturn(false);
+        when(userRepository.findById(authenticatedUserId)).thenReturn(Optional.of(user));
         Instant createdAtOriginal = Instant.parse("2026-01-01T10:00:00Z");
         profile.setCreatedAt(createdAtOriginal);
 
         when(repository.save(any(Profile.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        Profile result = service.save(profile);
+        Profile result = service.save(authenticatedUserId, profile);
 
         assertEquals(createdAtOriginal, result.getCreatedAt());
         assertNotNull(result.getUpdatedAt());
 
         verify(repository).save(profile);
-    }
-
-    @Test
-    void save_deveLancarExcecaoQuandoIdNaoForInformado() {
-        profile.setId(null);
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> service.save(profile)
-        );
-
-        verifyNoInteractions(repository);
     }
 
     @Test
@@ -122,13 +166,11 @@ class ProfileServiceTest {
 
         RuntimeException exception = assertThrows(
                 RuntimeException.class,
-                () -> service.findById(id)
-        );
+                () -> service.findById(id));
 
         assertEquals(
                 "Perfil não encontrado para o ID: " + id,
-                exception.getMessage()
-        );
+                exception.getMessage());
 
         verify(repository).findById(id);
     }
@@ -155,13 +197,11 @@ class ProfileServiceTest {
 
         RuntimeException exception = assertThrows(
                 RuntimeException.class,
-                () -> service.findByUsername(username)
-        );
+                () -> service.findByUsername(username));
 
         assertEquals(
                 "Perfil não encontrado para o username: " + username,
-                exception.getMessage()
-        );
+                exception.getMessage());
 
         verify(repository).findByUsername(username);
     }
@@ -185,11 +225,11 @@ class ProfileServiceTest {
         profileDetails.setBio("Bio nova");
         profileDetails.setAvatarImage("novo.png");
 
-        when(repository.findById(id)).thenReturn(Optional.of(existingProfile));
+        when(repository.findByIdAndUser_Id(id, id)).thenReturn(Optional.of(existingProfile));
         when(repository.save(any(Profile.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        Profile result = service.update(id, profileDetails);
+        Profile result = service.update(id, id, profileDetails);
 
         assertEquals("novo", result.getUsername());
         assertEquals("Nome novo", result.getDisplayName());
@@ -199,10 +239,9 @@ class ProfileServiceTest {
         assertNotNull(result.getUpdatedAt());
         assertEquals(
                 Instant.parse("2026-01-01T10:00:00Z"),
-                result.getCreatedAt()
-        );
+                result.getCreatedAt());
 
-        verify(repository).findById(id);
+        verify(repository).findByIdAndUser_Id(id, id);
         verify(repository).save(existingProfile);
     }
 
@@ -210,14 +249,13 @@ class ProfileServiceTest {
     void update_deveLancarExcecaoQuandoPerfilNaoExistir() {
         UUID id = profile.getId();
 
-        when(repository.findById(id)).thenReturn(Optional.empty());
+        when(repository.findByIdAndUser_Id(id, id)).thenReturn(Optional.empty());
 
         assertThrows(
                 RuntimeException.class,
-                () -> service.update(id, profile)
-        );
+                () -> service.update(id, id, profile));
 
-        verify(repository).findById(id);
+        verify(repository).findByIdAndUser_Id(id, id);
         verify(repository, never()).save(any(Profile.class));
     }
 
@@ -225,11 +263,11 @@ class ProfileServiceTest {
     void delete_deveExcluirPerfilQuandoEncontrado() {
         UUID id = profile.getId();
 
-        when(repository.findById(id)).thenReturn(Optional.of(profile));
+        when(repository.findByIdAndUser_Id(id, id)).thenReturn(Optional.of(profile));
 
-        service.delete(id);
+        service.delete(id, id);
 
-        verify(repository).findById(id);
+        verify(repository).findByIdAndUser_Id(id, id);
         verify(repository).delete(profile);
     }
 
@@ -237,14 +275,13 @@ class ProfileServiceTest {
     void delete_naoDeveExcluirQuandoPerfilNaoExistir() {
         UUID id = profile.getId();
 
-        when(repository.findById(id)).thenReturn(Optional.empty());
+        when(repository.findByIdAndUser_Id(id, id)).thenReturn(Optional.empty());
 
         assertThrows(
                 RuntimeException.class,
-                () -> service.delete(id)
-        );
+                () -> service.delete(id, id));
 
-        verify(repository).findById(id);
+        verify(repository).findByIdAndUser_Id(id, id);
         verify(repository, never()).delete(any(Profile.class));
     }
 }
