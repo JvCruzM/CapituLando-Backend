@@ -1,8 +1,14 @@
 package br.com.capitulando.service;
 
+import br.com.capitulando.model.Profile;
 import br.com.capitulando.model.Story;
-import br.com.capitulando.repository.StoryRepository; // Lembre-se de criar a interface JpaRepository
+import br.com.capitulando.model.StoryStatus;
+import br.com.capitulando.repository.ProfileRepository;
+import br.com.capitulando.repository.StoryRepository;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.List;
@@ -12,63 +18,73 @@ import java.util.UUID;
 public class StoryService {
 
     private final StoryRepository repository;
+    private final ProfileRepository profileRepository;
 
-    public StoryService(StoryRepository repository) {
+    public StoryService(
+            StoryRepository repository,
+            ProfileRepository profileRepository) {
         this.repository = repository;
+        this.profileRepository = profileRepository;
     }
 
-    // SALVAR
-    public Story save(Story story) {
-        // O status já vem como DRAFT por padrão do seu modelo, mas garantimos as datas aqui
-        story.setCreatedAt(Instant.now());
-        story.setUpdatedAt(Instant.now());
+    public Story save(UUID profileId, Story story) {
+        Profile profile = profileRepository.findById(profileId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Perfil do usuário autenticado não encontrado."));
+
+        // A autoria vem da identidade autenticada, não do corpo da requisição.
+        story.setId(null);
+        story.setProfile(profile);
+
+        Instant now = Instant.now();
+
+        story.setCreatedAt(now);
+        story.setUpdatedAt(now);
+
+        if (story.getStatus() == null) {
+            story.setStatus(StoryStatus.DRAFT);
+        }
+
+        if (story.getProgressPercentage() == null) {
+            story.setProgressPercentage(0);
+        }
+
         return repository.save(story);
     }
 
-    // LISTAR TODAS
-    public List<Story> findAll() {
-        return repository.findAll();
+    public List<Story> findAll(UUID profileId) {
+        return repository.findAllByProfileId(profileId);
     }
 
-    // BUSCAR POR ID
-    public Story findById(UUID id) {
-        return repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("História não encontrada para o ID: " + id));
+    public Story findById(UUID id, UUID profileId) {
+        return repository.findByIdAndProfileId(id, profileId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "História não encontrada."));
     }
 
-    // BUSCAR POR AUTOR (PROFILE ID)
-    public List<Story> findByProfileId(UUID profileId) {
-        return repository.findByProfileId(profileId);
-    }
-
-    // ATUALIZAR
-    public Story update(UUID id, Story storyDetails) {
-        Story existingStory = findById(id);
+    public Story update(UUID id, UUID profileId, Story storyDetails) {
+        Story existingStory = findById(id, profileId);
 
         existingStory.setTitle(storyDetails.getTitle());
         existingStory.setSynopsis(storyDetails.getSynopsis());
         existingStory.setDescription(storyDetails.getDescription());
         existingStory.setGenre(storyDetails.getGenre());
         existingStory.setCoverImage(storyDetails.getCoverImage());
-        
-        // Atualiza o status (ex: de DRAFT para PUBLISHED) se for enviado
+
         if (storyDetails.getStatus() != null) {
             existingStory.setStatus(storyDetails.getStatus());
         }
 
-        // Só atualiza o perfil autor se ele vier na requisição (transferência de autoria, por exemplo)
-        if (storyDetails.getProfile() != null) {
-            existingStory.setProfile(storyDetails.getProfile());
-        }
-
+        // O perfil proprietário não pode ser transferido pelo corpo da requisição.
         existingStory.setUpdatedAt(Instant.now());
 
         return repository.save(existingStory);
     }
 
-    // DELETAR
-    public void delete(UUID id) {
-        Story existingStory = findById(id);
+    public void delete(UUID id, UUID profileId) {
+        Story existingStory = findById(id, profileId);
         repository.delete(existingStory);
     }
 }

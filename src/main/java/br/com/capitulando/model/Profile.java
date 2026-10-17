@@ -1,5 +1,6 @@
 package br.com.capitulando.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -22,11 +23,11 @@ public class Profile {
     @Id
     private UUID id;
 
+    @JsonIgnore
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @MapsId
     @JoinColumn(name = "id", nullable = false)
     private User user;
-
     @Column(nullable = false, length = 50)
     private String username;
 

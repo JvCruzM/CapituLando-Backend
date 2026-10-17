@@ -2,8 +2,11 @@ package br.com.capitulando.controller;
 
 import br.com.capitulando.model.Story;
 import br.com.capitulando.service.StoryService;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,38 +22,68 @@ public class StoryController {
         this.storyService = storyService;
     }
 
-    // 1. CRIAR UMA HISTÓRIA (POST)
     @PostMapping
-    public ResponseEntity<Story> create(@RequestBody Story story) {
-        Story savedStory = storyService.save(story);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedStory);
+    public ResponseEntity<Story> create(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody Story story) {
+
+        Story savedStory = storyService.save(
+                authenticatedProfileId(jwt),
+                story);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(savedStory);
     }
 
-    // 2. LISTAR TODAS AS HISTÓRIAS (GET)
     @GetMapping
-    public ResponseEntity<List<Story>> listAll() {
-        List<Story> stories = storyService.findAll();
+    public ResponseEntity<List<Story>> listAll(
+            @AuthenticationPrincipal Jwt jwt) {
+
+        List<Story> stories = storyService.findAll(
+                authenticatedProfileId(jwt));
+
         return ResponseEntity.ok(stories);
     }
 
-    // 3. BUSCAR HISTÓRIA POR ID (GET)
     @GetMapping("/{id}")
-    public ResponseEntity<Story> findById(@PathVariable UUID id) {
-        Story story = storyService.findById(id);
+    public ResponseEntity<Story> findById(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        Story story = storyService.findById(
+                id,
+                authenticatedProfileId(jwt));
+
         return ResponseEntity.ok(story);
     }
 
-    // 4. ATUALIZAR HISTÓRIA (PUT)
     @PutMapping("/{id}")
-    public ResponseEntity<Story> update(@PathVariable UUID id, @RequestBody Story story) {
-        Story updatedStory = storyService.update(id, story);
+    public ResponseEntity<Story> update(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody Story story) {
+
+        Story updatedStory = storyService.update(
+                id,
+                authenticatedProfileId(jwt),
+                story);
+
         return ResponseEntity.ok(updatedStory);
     }
 
-    // 5. DELETAR HISTÓRIA (DELETE)
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        storyService.delete(id);
+    public ResponseEntity<Void> delete(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        storyService.delete(
+                id,
+                authenticatedProfileId(jwt));
+
         return ResponseEntity.noContent().build();
+    }
+
+    private UUID authenticatedProfileId(Jwt jwt) {
+        return UUID.fromString(jwt.getSubject());
     }
 }
