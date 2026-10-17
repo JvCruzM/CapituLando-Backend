@@ -1,8 +1,12 @@
 package br.com.capitulando.service;
 
 import br.com.capitulando.model.Item;
+import br.com.capitulando.model.Story;
 import br.com.capitulando.repository.ItemRepository;
+import br.com.capitulando.repository.StoryRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.List;
@@ -12,60 +16,78 @@ import java.util.UUID;
 public class ItemService {
 
     private final ItemRepository repository;
+    private final StoryRepository storyRepository;
 
-    public ItemService(ItemRepository repository) {
+    public ItemService(ItemRepository repository, StoryRepository storyRepository) {
         this.repository = repository;
+        this.storyRepository = storyRepository;
     }
 
-    // SALVAR
-    public Item save(Item item) {
-        item.setCreatedAt(Instant.now());
-        item.setUpdatedAt(Instant.now());
-        return repository.save(item);
+    public Item save(UUID profileId, Item item) {
+        Story story = findOwnedStory(storyId(item), profileId);
+
+        item.setId(null);
+        item.setStory(story);
+
+        Instant now = Instant.now();
+        item.setCreatedAt(now);
+        item.setUpdatedAt(now);
+
+        Item saved = repository.save(item);
+        return findById(saved.getId(), profileId);
     }
 
-    // LISTAR TODOS
-    public List<Item> findAll() {
-        return repository.findAll();
+    public List<Item> findAll(UUID profileId) {
+        return repository.findAllByStory_Profile_Id(profileId);
     }
 
-    // BUSCAR POR ID
-    public Item findById(UUID id) {
-        return repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Item não encontrado para o ID: " + id));
+    public Item findById(UUID id, UUID profileId) {
+        return repository.findByIdAndStory_Profile_Id(id, profileId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Item não encontrado."));
     }
 
-    // BUSCAR POR ID DA HISTÓRIA
-    public List<Item> findByStoryId(UUID storyId) {
-        return repository.findByStoryId(storyId);
+    public List<Item> findByStoryId(UUID storyId, UUID profileId) {
+        findOwnedStory(storyId, profileId);
+        return repository.findByStoryIdAndStory_Profile_Id(storyId, profileId);
     }
 
-    // ATUALIZAR
-    public Item update(UUID id, Item itemDetails) {
-        Item existingItem = findById(id);
+    public Item update(UUID id, UUID profileId, Item itemDetails) {
+        Item existingItem = findById(id, profileId);
+        Story targetStory = existingItem.getStory();
 
-        // Atualiza os campos de texto
+        if (itemDetails.getStory() != null) {
+            targetStory = findOwnedStory(storyId(itemDetails), profileId);
+        }
+
         existingItem.setName(itemDetails.getName());
         existingItem.setType(itemDetails.getType());
         existingItem.setDescription(itemDetails.getDescription());
         existingItem.setAppearance(itemDetails.getAppearance());
         existingItem.setOrigin(itemDetails.getOrigin());
         existingItem.setItemImage(itemDetails.getItemImage());
-        
-        // Só atualiza a história se ela for enviada na requisição
-        if (itemDetails.getStory() != null) {
-            existingItem.setStory(itemDetails.getStory());
-        }
-
-        // Atualiza a data de modificação
+        existingItem.setStory(targetStory);
         existingItem.setUpdatedAt(Instant.now());
 
-        return repository.save(existingItem);
+        repository.save(existingItem);
+        return findById(id, profileId);
     }
 
-    // DELETAR
-    public void delete(UUID id) {
-        Item existingItem = findById(id);
-        repository.delete(existingItem);
+    public void delete(UUID id, UUID profileId) {
+        repository.delete(findById(id, profileId));
+    }
+
+    private UUID storyId(Item item) {
+        if (item.getStory() == null || item.getStory().getId() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "História não encontrada.");
+        }
+        return item.getStory().getId();
+    }
+
+    private Story findOwnedStory(UUID storyId, UUID profileId) {
+        return storyRepository.findByIdAndProfileId(storyId, profileId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "História não encontrada."));
     }
 }

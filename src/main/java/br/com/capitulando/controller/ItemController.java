@@ -1,9 +1,11 @@
 package br.com.capitulando.controller;
 
 import br.com.capitulando.model.Item;
-import br.com.capitulando.service.ItemService; // Você precisará criar este Service
+import br.com.capitulando.service.ItemService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,43 +17,51 @@ public class ItemController {
 
     private final ItemService itemService;
 
-    // Injeção de dependência do Service via construtor
     public ItemController(ItemService itemService) {
         this.itemService = itemService;
     }
 
-    // 1. CRIAR UM ITEM (POST)
     @PostMapping
-    public ResponseEntity<Item> create(@RequestBody Item item) {
-        Item savedItem = itemService.save(item);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedItem); // Retorna 201 Created
+    public ResponseEntity<Item> create(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody Item item) {
+        Item savedItem = itemService.save(authenticatedProfileId(jwt), item);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedItem);
     }
 
-    // 2. LISTAR TODOS OS ITENS (GET)
     @GetMapping
-    public ResponseEntity<List<Item>> listAll() {
-        List<Item> items = itemService.findAll();
-        return ResponseEntity.ok(items); // Retorna 200 OK
+    public ResponseEntity<List<Item>> listAll(@AuthenticationPrincipal Jwt jwt) {
+        List<Item> items = itemService.findAll(authenticatedProfileId(jwt));
+        return ResponseEntity.ok(items);
     }
 
-    // 3. BUSCAR UM ITEM ESPECÍFICO POR ID (GET)
     @GetMapping("/{id}")
-    public ResponseEntity<Item> findById(@PathVariable UUID id) {
-        Item item = itemService.findById(id);
-        return ResponseEntity.ok(item); // Retorna 200 OK
+    public ResponseEntity<Item> findById(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt) {
+        Item item = itemService.findById(id, authenticatedProfileId(jwt));
+        return ResponseEntity.ok(item);
     }
 
-    // 4. ATUALIZAR UM ITEM (PUT)
     @PutMapping("/{id}")
-    public ResponseEntity<Item> update(@PathVariable UUID id, @RequestBody Item item) {
-        Item updatedItem = itemService.update(id, item);
-        return ResponseEntity.ok(updatedItem); // Retorna 200 OK
+    public ResponseEntity<Item> update(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody Item item) {
+        Item updatedItem = itemService.update(
+                id, authenticatedProfileId(jwt), item);
+        return ResponseEntity.ok(updatedItem);
     }
 
-    // 5. DELETAR UM ITEM (DELETE)
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        itemService.delete(id);
-        return ResponseEntity.noContent().build(); // Retorna 204 No Content
+    public ResponseEntity<Void> delete(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt) {
+        itemService.delete(id, authenticatedProfileId(jwt));
+        return ResponseEntity.noContent().build();
+    }
+
+    private UUID authenticatedProfileId(Jwt jwt) {
+        return UUID.fromString(jwt.getSubject());
     }
 }

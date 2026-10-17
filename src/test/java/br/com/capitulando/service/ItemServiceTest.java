@@ -1,7 +1,9 @@
 package br.com.capitulando.service;
 
 import br.com.capitulando.model.Item;
+import br.com.capitulando.model.Story;
 import br.com.capitulando.repository.ItemRepository;
+import br.com.capitulando.repository.StoryRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -15,6 +17,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -23,6 +26,9 @@ class ItemServiceTest {
     @Mock
     private ItemRepository repository;
 
+    @Mock
+    private StoryRepository storyRepository;
+
     @InjectMocks
     private ItemService service;
 
@@ -30,11 +36,23 @@ class ItemServiceTest {
     void save_deveDefinirDatasEDelegarAoRepositorio() {
         Item entity = new Item();
 
-        when(repository.save(any(Item.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-
         Instant before = Instant.now();
-        Item result = service.save(entity);
+        UUID profileId = UUID.randomUUID();
+        UUID storyId = UUID.randomUUID();
+        Story story = new Story();
+        story.setId(storyId);
+        entity.setStory(story);
+        when(storyRepository.findByIdAndProfileId(storyId, profileId))
+                .thenReturn(Optional.of(story));
+        when(repository.save(any(Item.class))).thenAnswer(invocation -> {
+            Item saved = invocation.getArgument(0);
+            saved.setId(UUID.randomUUID());
+            return saved;
+        });
+        when(repository.findByIdAndStory_Profile_Id(any(), eq(profileId)))
+                .thenAnswer(invocation -> Optional.of(entity));
+
+        Item result = service.save(profileId, entity);
         Instant after = Instant.now();
 
         assertSame(entity, result);
@@ -52,12 +70,13 @@ class ItemServiceTest {
     void findAll_deveRetornarResultadosDoRepositorio() {
         Item entity = new Item();
         List<Item> expected = List.of(entity);
-        when(repository.findAll()).thenReturn(expected);
+        when(repository.findAllByStory_Profile_Id(any())).thenReturn(expected);
 
-        List<Item> result = service.findAll();
+        UUID profileId = UUID.randomUUID();
+        List<Item> result = service.findAll(profileId);
 
         assertEquals(expected, result);
-        verify(repository).findAll();
+        verify(repository).findAllByStory_Profile_Id(profileId);
     }
 
     @Test
@@ -65,22 +84,24 @@ class ItemServiceTest {
         UUID id = UUID.randomUUID();
         Item entity = new Item();
         entity.setId(id);
-        when(repository.findById(id)).thenReturn(Optional.of(entity));
+        UUID profileId = UUID.randomUUID();
+        when(repository.findByIdAndStory_Profile_Id(id, profileId)).thenReturn(Optional.of(entity));
 
-        Item result = service.findById(id);
+        Item result = service.findById(id, profileId);
 
         assertSame(entity, result);
-        verify(repository).findById(id);
+        verify(repository).findByIdAndStory_Profile_Id(id, profileId);
     }
 
     @Test
     void findById_deveLancarExcecaoQuandoNaoEncontrada() {
         UUID id = UUID.randomUUID();
-        when(repository.findById(id)).thenReturn(Optional.empty());
+        UUID profileId = UUID.randomUUID();
+        when(repository.findByIdAndStory_Profile_Id(id, profileId)).thenReturn(Optional.empty());
 
-        assertThrows(RuntimeException.class, () -> service.findById(id));
+        assertThrows(RuntimeException.class, () -> service.findById(id, profileId));
 
-        verify(repository).findById(id);
+        verify(repository).findByIdAndStory_Profile_Id(id, profileId);
     }
 
     @Test
@@ -91,16 +112,19 @@ class ItemServiceTest {
         existing.setName("Valor antigo");
         Item details = new Item();
         details.setName("Item atualizado");
-        when(repository.findById(id)).thenReturn(Optional.of(existing));
-        when(repository.save(any(Item.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+        UUID profileId = UUID.randomUUID();
+        Story story = new Story();
+        existing.setStory(story);
+        when(repository.findByIdAndStory_Profile_Id(id, profileId)).thenReturn(Optional.of(existing));
+        when(repository.save(any(Item.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Item result = service.update(id, details);
+        when(repository.findByIdAndStory_Profile_Id(id, profileId)).thenReturn(Optional.of(existing));
+        Item result = service.update(id, profileId, details);
 
         assertSame(existing, result);
         assertEquals("Item atualizado", result.getName());
         assertNotNull(result.getUpdatedAt());
-        verify(repository).findById(id);
+        verify(repository, atLeastOnce()).findByIdAndStory_Profile_Id(id, profileId);
         verify(repository).save(existing);
     }
 
@@ -109,11 +133,12 @@ class ItemServiceTest {
         UUID id = UUID.randomUUID();
         Item existing = new Item();
         existing.setId(id);
-        when(repository.findById(id)).thenReturn(Optional.of(existing));
+        UUID profileId = UUID.randomUUID();
+        when(repository.findByIdAndStory_Profile_Id(id, profileId)).thenReturn(Optional.of(existing));
 
-        service.delete(id);
+        service.delete(id, profileId);
 
-        verify(repository).findById(id);
+        verify(repository).findByIdAndStory_Profile_Id(id, profileId);
         verify(repository).delete(existing);
     }
 
@@ -121,12 +146,15 @@ class ItemServiceTest {
     void findByStoryId_deveDelegarAoRepositorio() {
         UUID storyId = UUID.randomUUID();
         List<Item> expected = List.of(new Item());
-        when(repository.findByStoryId(storyId)).thenReturn(expected);
+        UUID profileId = UUID.randomUUID();
+        Story story = new Story();
+        when(storyRepository.findByIdAndProfileId(storyId, profileId)).thenReturn(Optional.of(story));
+        when(repository.findByStoryIdAndStory_Profile_Id(storyId, profileId)).thenReturn(expected);
 
-        List<Item> result = service.findByStoryId(storyId);
+        List<Item> result = service.findByStoryId(storyId, profileId);
 
         assertEquals(expected, result);
-        verify(repository).findByStoryId(storyId);
+        verify(repository).findByStoryIdAndStory_Profile_Id(storyId, profileId);
     }
 
 }
