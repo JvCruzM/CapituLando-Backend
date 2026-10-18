@@ -61,7 +61,7 @@ public class SecurityConfiguration {
         CorsConfigurationSource corsConfigurationSource(
                         @Value("${app.frontend-url:http://localhost:3000}") String frontendUrl) {
                 List<String> origins = Arrays.stream(frontendUrl.split(","))
-                                .map(String::trim)
+                                .map(origin -> origin.trim())
                                 .filter(s -> !s.isEmpty())
                                 .map(s -> s.replaceAll("/+$", ""))
                                 .toList();

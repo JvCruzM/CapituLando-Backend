@@ -99,6 +99,13 @@ class ItemOwnershipIntegrationTest {
 
         mockMvc.perform(get("/items/{id}", item.getId()).header("Authorization", authorization))
                 .andExpect(status().isNotFound());
+        mockMvc.perform(put("/items/{id}", item.getId()).header("Authorization", authorization)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"name":"Tentativa de alteração"}
+                        """))
+                .andExpect(status().isNotFound());
+        assertEquals(item.getName(), itemRepository.findById(item.getId()).orElseThrow().getName());
         mockMvc.perform(delete("/items/{id}", item.getId()).header("Authorization", authorization))
                 .andExpect(status().isNotFound());
         assertTrue(itemRepository.existsById(item.getId()));
