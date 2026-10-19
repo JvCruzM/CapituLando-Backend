@@ -24,6 +24,7 @@ public interface RaceRepository extends JpaRepository<Race, UUID> {
                         UUID id,
                         UUID profileId);
 
+        @EntityGraph(attributePaths = "story.profile")
         Optional<Race> findByIdAndStory_IdAndStory_Profile_Id(
                         UUID id,
                         UUID storyId,

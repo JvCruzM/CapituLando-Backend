@@ -36,6 +36,7 @@ public class CharacterService {
                 this.relationshipRepository = relationshipRepository;
         }
 
+        @Transactional
         public Character save(UUID profileId, Character character) {
                 if (character.getStory() == null
                                 || character.getStory().getId() == null) {
@@ -58,9 +59,7 @@ public class CharacterService {
                 character.setCreatedAt(now);
                 character.setUpdatedAt(now);
 
-                Character saved = repository.save(character);
-
-                return findById(saved.getId(), profileId);
+                return repository.save(character);
         }
 
         public List<Character> findAll(UUID profileId) {
@@ -76,6 +75,7 @@ public class CharacterService {
                                                 "Personagem não encontrado."));
         }
 
+        @Transactional
         public Character update(
                         UUID id,
                         UUID profileId,
@@ -132,9 +132,7 @@ public class CharacterService {
 
                 existingCharacter.setUpdatedAt(Instant.now());
 
-                repository.save(existingCharacter);
-
-                return findById(id, profileId);
+                return repository.save(existingCharacter);
         }
 
         @Transactional

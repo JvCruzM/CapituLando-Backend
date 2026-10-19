@@ -15,6 +15,9 @@ public interface CharacterRepository
 
         Optional<Character> findByIdAndStory_Id(UUID id, UUID storyId);
 
+        long countByIdInAndStory_IdAndStory_Profile_Id(
+                        List<UUID> ids, UUID storyId, UUID profileId);
+
         @EntityGraph(attributePaths = {
                         "story.profile",
                         "race.story.profile"

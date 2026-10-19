@@ -2,7 +2,6 @@ package br.com.capitulando.service;
 
 import br.com.capitulando.dto.CharacterRelationshipRequest;
 import br.com.capitulando.dto.CharacterRelationshipResponse;
-import br.com.capitulando.model.Character;
 import br.com.capitulando.model.CharacterRelationship;
 import br.com.capitulando.model.Story;
 import br.com.capitulando.repository.CharacterRelationshipRepository;
@@ -10,6 +9,7 @@ import br.com.capitulando.repository.CharacterRepository;
 import br.com.capitulando.repository.StoryRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
@@ -38,27 +38,31 @@ public class CharacterRelationshipService {
                 .stream().map(this::toResponse).toList();
     }
 
+    @Transactional
     public CharacterRelationshipResponse save(
             UUID storyId, UUID profileId, CharacterRelationshipRequest request) {
         Story story = findOwnedStory(storyId, profileId);
-        Character source = findStoryCharacter(request.sourceCharacterId(), storyId);
-        Character target = findStoryCharacter(request.targetCharacterId(), storyId);
-        validateDifferentCharacters(source, target);
+        validateDifferentCharacters(request.sourceCharacterId(), request.targetCharacterId());
+        validateCharactersBelongToStory(
+                List.of(request.sourceCharacterId(), request.targetCharacterId()), storyId, profileId);
 
         CharacterRelationship relationship = new CharacterRelationship();
         relationship.setStory(story);
-        relationship.setSourceCharacter(source);
-        relationship.setTargetCharacter(target);
+        relationship.setSourceCharacter(characterRepository.getReferenceById(request.sourceCharacterId()));
+        relationship.setTargetCharacter(characterRepository.getReferenceById(request.targetCharacterId()));
         applyRequest(relationship, request);
         return toResponse(repository.save(relationship));
     }
 
+    @Transactional
     public CharacterRelationshipResponse update(
             UUID storyId, UUID relationshipId, UUID profileId, CharacterRelationshipRequest request) {
         CharacterRelationship relationship = findOwnedRelationship(storyId, relationshipId, profileId);
-        relationship.setSourceCharacter(findStoryCharacter(request.sourceCharacterId(), storyId));
-        relationship.setTargetCharacter(findStoryCharacter(request.targetCharacterId(), storyId));
-        validateDifferentCharacters(relationship.getSourceCharacter(), relationship.getTargetCharacter());
+        validateDifferentCharacters(request.sourceCharacterId(), request.targetCharacterId());
+        validateCharactersBelongToStory(
+                List.of(request.sourceCharacterId(), request.targetCharacterId()), storyId, profileId);
+        relationship.setSourceCharacter(characterRepository.getReferenceById(request.sourceCharacterId()));
+        relationship.setTargetCharacter(characterRepository.getReferenceById(request.targetCharacterId()));
         applyRequest(relationship, request);
         relationship.setUpdatedAt(Instant.now());
         return toResponse(repository.save(relationship));
@@ -73,10 +77,12 @@ public class CharacterRelationshipService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "História não encontrada."));
     }
 
-    private Character findStoryCharacter(UUID characterId, UUID storyId) {
-        return characterRepository.findByIdAndStory_Id(characterId, storyId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Personagem não encontrado nesta história."));
+    private void validateCharactersBelongToStory(List<UUID> characterIds, UUID storyId, UUID profileId) {
+        if (characterRepository.countByIdInAndStory_IdAndStory_Profile_Id(
+                characterIds, storyId, profileId) != characterIds.size()) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Personagem não encontrado nesta história.");
+        }
     }
 
     private CharacterRelationship findOwnedRelationship(UUID storyId, UUID relationshipId, UUID profileId) {
@@ -91,8 +97,8 @@ public class CharacterRelationshipService {
         relationship.setLevel(request.level() == null ? 3 : Math.max(1, Math.min(5, request.level())));
     }
 
-    private void validateDifferentCharacters(Character source, Character target) {
-        if (source.getId().equals(target.getId())) {
+    private void validateDifferentCharacters(UUID sourceCharacterId, UUID targetCharacterId) {
+        if (sourceCharacterId.equals(targetCharacterId)) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Um personagem não pode se relacionar consigo mesmo.");
         }
