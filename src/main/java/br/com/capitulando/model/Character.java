@@ -45,6 +45,18 @@ public class Character {
     @Column
     private Integer age;
 
+    @Column(length = 30)
+    private String height;
+
+    @Column(length = 30)
+    private String weight;
+
+    @Column(length = 30)
+    private String zodiac;
+
+    @Column(name = "blood_type", length = 10)
+    private String bloodType;
+
     @Column(length = 50)
     private String gender;
 
@@ -53,6 +65,24 @@ public class Character {
 
     @Column(name = "character_image", columnDefinition = "TEXT")
     private String characterImage;
+
+    @Column(name = "image_fit", length = 12)
+    private String imageFit;
+
+    @Column(name = "image_position", length = 30)
+    private String imagePosition;
+
+    @Column(columnDefinition = "TEXT")
+    private String likes;
+
+    @Column(columnDefinition = "TEXT")
+    private String dislikes;
+
+    @Column(columnDefinition = "TEXT")
+    private String drinks;
+
+    @Column(columnDefinition = "TEXT")
+    private String motto;
 
     @Column(name = "role", length = 50)
     private String role;
@@ -142,6 +172,38 @@ public class Character {
         this.age = age;
     }
 
+    public String getHeight() {
+        return height;
+    }
+
+    public void setHeight(String height) {
+        this.height = height;
+    }
+
+    public String getWeight() {
+        return weight;
+    }
+
+    public void setWeight(String weight) {
+        this.weight = weight;
+    }
+
+    public String getZodiac() {
+        return zodiac;
+    }
+
+    public void setZodiac(String zodiac) {
+        this.zodiac = zodiac;
+    }
+
+    public String getBloodType() {
+        return bloodType;
+    }
+
+    public void setBloodType(String bloodType) {
+        this.bloodType = bloodType;
+    }
+
     public String getGender() {
         return gender;
     }
@@ -164,6 +226,54 @@ public class Character {
 
     public void setCharacterImage(String characterImage) {
         this.characterImage = characterImage;
+    }
+
+    public String getImageFit() {
+        return imageFit;
+    }
+
+    public void setImageFit(String imageFit) {
+        this.imageFit = imageFit;
+    }
+
+    public String getImagePosition() {
+        return imagePosition;
+    }
+
+    public void setImagePosition(String imagePosition) {
+        this.imagePosition = imagePosition;
+    }
+
+    public String getLikes() {
+        return likes;
+    }
+
+    public void setLikes(String likes) {
+        this.likes = likes;
+    }
+
+    public String getDislikes() {
+        return dislikes;
+    }
+
+    public void setDislikes(String dislikes) {
+        this.dislikes = dislikes;
+    }
+
+    public String getDrinks() {
+        return drinks;
+    }
+
+    public void setDrinks(String drinks) {
+        this.drinks = drinks;
+    }
+
+    public String getMotto() {
+        return motto;
+    }
+
+    public void setMotto(String motto) {
+        this.motto = motto;
     }
 
     public String getRole() {

@@ -1,0 +1,14 @@
+ALTER TABLE characters
+ADD COLUMN height VARCHAR(30),
+ADD COLUMN weight VARCHAR(30),
+ADD COLUMN zodiac VARCHAR(30),
+ADD COLUMN blood_type VARCHAR(10),
+ADD COLUMN image_fit VARCHAR(12),
+ADD COLUMN image_position VARCHAR(30),
+ADD COLUMN likes TEXT,
+ADD COLUMN dislikes TEXT,
+ADD COLUMN drinks TEXT,
+ADD COLUMN motto TEXT;
+
+ALTER TABLE character_relationships
+ADD COLUMN description TEXT;

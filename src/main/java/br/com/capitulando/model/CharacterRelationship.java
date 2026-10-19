@@ -40,6 +40,9 @@ public class CharacterRelationship {
     @Column(name = "relationship_type", nullable = false, length = 80)
     private String type;
 
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
     @Column(nullable = false)
     private Integer level = 3;
 
@@ -104,6 +107,14 @@ public class CharacterRelationship {
 
     public void setType(String type) {
         this.type = type;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public Integer getLevel() {

@@ -5,6 +5,7 @@ import br.com.capitulando.model.Profile;
 import br.com.capitulando.model.Story;
 import br.com.capitulando.model.User;
 import br.com.capitulando.repository.CharacterRepository;
+import br.com.capitulando.repository.CharacterRelationshipRepository;
 import br.com.capitulando.repository.ProfileRepository;
 import br.com.capitulando.repository.StoryRepository;
 import br.com.capitulando.repository.UserRepository;
@@ -52,6 +53,9 @@ class CharacterOwnershipIntegrationTest {
 
         @Autowired
         private CharacterRepository characterRepository;
+
+        @Autowired
+        private CharacterRelationshipRepository characterRelationshipRepository;
 
         @Autowired
         private PasswordEncoder passwordEncoder;
@@ -214,6 +218,58 @@ class CharacterOwnershipIntegrationTest {
                 assertTrue(
                                 characterRepository.existsById(otherCharacter.getId()),
                                 "O personagem de outro usuário não deve ser excluído.");
+        }
+
+        @Test
+        void relacionamentosDevemSerPrivadosEExclusaoDePersonagemRemoveVinculos()
+                        throws Exception {
+                TestAccount owner = createAccount();
+                TestAccount other = createAccount();
+                Story ownStory = createStory(owner.profile(), "Historia relacoes " + UUID.randomUUID());
+                Story otherStory = createStory(other.profile(), "Historia alheia " + UUID.randomUUID());
+                Character source = createCharacter(ownStory, "Origem " + UUID.randomUUID());
+                Character target = createCharacter(ownStory, "Destino " + UUID.randomUUID());
+                Character foreignCharacter = createCharacter(otherStory, "Alheio " + UUID.randomUUID());
+
+                String response = mockMvc.perform(post(
+                                "/stories/{storyId}/character-relationships", ownStory.getId())
+                                .header("Authorization", "Bearer " + owner.token())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                                {
+                                                    "sourceCharacterId": "%s",
+                                                    "targetCharacterId": "%s",
+                                                    "type": "amizade",
+                                                    "description": "Aliados desde o início"
+                                                }
+                                                """.formatted(source.getId(), target.getId())))
+                                .andExpect(status().isCreated())
+                                .andExpect(content().string(containsString("Aliados desde o início")))
+                                .andReturn().getResponse().getContentAsString();
+
+                assertTrue(response.contains(source.getId().toString()));
+                mockMvc.perform(get("/stories/{storyId}/character-relationships", ownStory.getId())
+                                .header("Authorization", "Bearer " + other.token()))
+                                .andExpect(status().isNotFound());
+
+                mockMvc.perform(post("/stories/{storyId}/character-relationships", ownStory.getId())
+                                .header("Authorization", "Bearer " + owner.token())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                                {
+                                                    "sourceCharacterId": "%s",
+                                                    "targetCharacterId": "%s",
+                                                    "type": "inválido"
+                                                }
+                                                """.formatted(source.getId(), foreignCharacter.getId())))
+                                .andExpect(status().isNotFound());
+
+                mockMvc.perform(delete("/characters/{id}", source.getId())
+                                .header("Authorization", "Bearer " + owner.token()))
+                                .andExpect(status().isNoContent());
+
+                assertTrue(characterRelationshipRepository
+                                .findAllByStory_IdOrderByCreatedAtAsc(ownStory.getId()).isEmpty());
         }
 
         private TestAccount createAccount() {

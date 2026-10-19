@@ -4,6 +4,7 @@ import br.com.capitulando.model.Character;
 import br.com.capitulando.model.Profile;
 import br.com.capitulando.model.Story;
 import br.com.capitulando.repository.CharacterRepository;
+import br.com.capitulando.repository.CharacterRelationshipRepository;
 import br.com.capitulando.repository.StoryRepository;
 
 import org.junit.jupiter.api.Test;
@@ -30,6 +31,9 @@ class CharacterServiceTest {
 
         @Mock
         private StoryRepository storyRepository;
+
+        @Mock
+        private CharacterRelationshipRepository relationshipRepository;
 
         @InjectMocks
         private CharacterService service;
@@ -225,12 +229,19 @@ class CharacterServiceTest {
 
                 Character existing = new Character();
                 existing.setId(characterId);
+                Story story = new Story();
+                story.setId(UUID.randomUUID());
+                existing.setStory(story);
 
                 when(repository.findByIdAndStory_Profile_Id(characterId, profileId))
                                 .thenReturn(Optional.of(existing));
 
                 service.delete(characterId, profileId);
 
+                verify(relationshipRepository).deleteAllByStory_IdAndSourceCharacter_Id(
+                                story.getId(), characterId);
+                verify(relationshipRepository).deleteAllByStory_IdAndTargetCharacter_Id(
+                                story.getId(), characterId);
                 verify(repository).delete(existing);
         }
 

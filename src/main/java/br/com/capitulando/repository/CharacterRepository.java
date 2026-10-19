@@ -13,6 +13,8 @@ public interface CharacterRepository
 
         List<Character> findByStoryId(UUID storyId);
 
+        Optional<Character> findByIdAndStory_Id(UUID id, UUID storyId);
+
         @EntityGraph(attributePaths = {
                         "story.profile",
                         "race.story.profile"
