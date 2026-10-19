@@ -1,6 +1,7 @@
 package br.com.capitulando.controller;
 
 import br.com.capitulando.model.Character;
+import br.com.capitulando.dto.CharacterSaveResponse;
 import br.com.capitulando.service.CharacterService;
 
 import org.springframework.http.HttpStatus;
@@ -23,7 +24,7 @@ public class CharacterController {
         }
 
         @PostMapping
-        public ResponseEntity<Character> create(
+        public ResponseEntity<CharacterSaveResponse> create(
                         @AuthenticationPrincipal Jwt jwt,
                         @RequestBody Character character) {
                 Character savedCharacter = characterService.save(
@@ -31,7 +32,7 @@ public class CharacterController {
                                 character);
 
                 return ResponseEntity.status(HttpStatus.CREATED)
-                                .body(savedCharacter);
+                                .body(toSaveResponse(savedCharacter));
         }
 
         @GetMapping
@@ -55,7 +56,7 @@ public class CharacterController {
         }
 
         @PutMapping("/{id}")
-        public ResponseEntity<Character> update(
+        public ResponseEntity<CharacterSaveResponse> update(
                         @PathVariable UUID id,
                         @AuthenticationPrincipal Jwt jwt,
                         @RequestBody Character character) {
@@ -64,7 +65,7 @@ public class CharacterController {
                                 authenticatedProfileId(jwt),
                                 character);
 
-                return ResponseEntity.ok(updatedCharacter);
+                return ResponseEntity.ok(toSaveResponse(updatedCharacter));
         }
 
         @DeleteMapping("/{id}")
@@ -80,5 +81,11 @@ public class CharacterController {
 
         private UUID authenticatedProfileId(Jwt jwt) {
                 return UUID.fromString(jwt.getSubject());
+        }
+
+        private CharacterSaveResponse toSaveResponse(Character character) {
+                return new CharacterSaveResponse(
+                                character.getId(),
+                                character.getStory().getId());
         }
 }
